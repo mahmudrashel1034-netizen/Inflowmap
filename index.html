@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
 <meta name="theme-color" content="#0f1115">
 <title>InflowMap</title>
 <script src="https://cdn.tailwindcss.com/3.4.16"></script>
@@ -44,14 +48,20 @@
   }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body{ margin:0; padding:0; height:100%; }
+  html{ overflow-x:hidden; overscroll-behavior-y:none; -webkit-text-size-adjust:100%; text-size-adjust:100%; }
   body{
     font-family:var(--font-sans); background:var(--bg); color:var(--text);
-    font-size:15px; line-height:1.5; overflow-x:hidden;
+    font-size:15px; line-height:1.5; overflow-x:hidden; overscroll-behavior-y:none;
     -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    touch-action:pan-y; position:relative;
   }
+  /* prevent layout shift / accidental zoom on interactive chrome */
+  button, .chip, .nav-btn, .menu-item, .check, .grip{ user-select:none; -webkit-user-select:none; }
+  input, select, textarea{ font-size:16px; } /* >=16px stops iOS auto-zoom on focus */
+  img, svg{ max-width:100%; }
   @media (prefers-reduced-motion: reduce){ *{ animation-duration:.01ms !important; transition-duration:.01ms !important; } }
   button{ font-family:inherit; cursor:pointer; border:none; background:none; color:inherit; }
-  input,select,textarea{ font-family:inherit; font-size:15px; color:inherit; }
+  input,select,textarea{ font-family:inherit; font-size:16px; color:inherit; }
   :focus-visible{ outline:2px solid var(--primary); outline-offset:2px; border-radius:4px; }
   ::-webkit-scrollbar{ width:8px; height:8px; }
   ::-webkit-scrollbar-thumb{ background:var(--border-strong); border-radius:8px; }
@@ -60,7 +70,9 @@
 
   /* Layout */
   #app{ max-width:640px; margin:0 auto; min-height:100dvh; background:var(--bg);
-        padding-bottom:calc(72px + env(safe-area-inset-bottom)); position:relative; }
+        padding-bottom:calc(72px + env(safe-area-inset-bottom)); position:relative;
+        overflow-x:hidden; }
+  body.sheet-open{ overflow:hidden; position:fixed; inset:0; width:100%; }
   @media(min-width:900px){
     body{ background:var(--bg); }
     #app{ max-width:760px; box-shadow:0 0 0 1px var(--border); }
@@ -84,7 +96,7 @@
   .btn-sm{ min-height:36px; padding:0 12px; font-size:13px; border-radius:var(--r-sm); }
   .btn-icon{ min-height:var(--touch); width:var(--touch); padding:0; border-radius:var(--r-md); }
 
-  .input{ width:100%; min-height:var(--touch); padding:10px 14px; background:var(--surface-2);
+  .input{ width:100%; min-height:var(--touch); padding:10px 14px; background:var(--surface-2); font-size:16px;
           border:1px solid var(--border); border-radius:var(--r-md); transition:border-color var(--dur-fast), background var(--dur-fast); }
   .input:focus{ outline:none; border-color:var(--primary); background:var(--surface); }
   textarea.input{ min-height:88px; resize:vertical; line-height:1.55; }
@@ -776,7 +788,13 @@ function toast(msg, ms=2200){
 
 const Layers = {
   stack:[],
+  _savedY:0,
   open(html, opts={}){
+    if(this.stack.length===0){
+      this._savedY = window.scrollY;
+      document.body.style.top = (-this._savedY)+"px";
+      document.body.classList.add("sheet-open");
+    }
     const scrim = document.createElement("div"); scrim.className="scrim";
     const layer = document.createElement("div"); layer.className="layer";
     layer.innerHTML = html;
@@ -790,10 +808,32 @@ const Layers = {
     const item = this.stack.pop(); if(!item) return;
     item.scrim.remove(); item.layer.remove();
     if(item.onClose) try{item.onClose();}catch(e){}
+    if(this.stack.length===0){
+      document.body.classList.remove("sheet-open");
+      document.body.style.top = "";
+      window.scrollTo(0, this._savedY);
+    }
   },
   closeAll(){ while(this.stack.length) this.close(); }
 };
 document.addEventListener("keydown", e=>{ if(e.key==="Escape" && Layers.stack.length) Layers.close(); });
+
+/* stability: block pinch-zoom + double-tap zoom (desktop trackpads and touch) */
+document.addEventListener("wheel", e=>{ if(e.ctrlKey) e.preventDefault(); }, { passive:false });
+document.addEventListener("gesturestart", e=>e.preventDefault());
+document.addEventListener("gesturechange", e=>e.preventDefault());
+let _lastTouchEnd = 0;
+document.addEventListener("touchend", e=>{
+  const now = Date.now();
+  if(now - _lastTouchEnd <= 320) e.preventDefault();
+  _lastTouchEnd = now;
+}, { passive:false });
+/* keep the visual viewport from being shifted by focus/keyboard on mobile */
+if(window.visualViewport){
+  window.visualViewport.addEventListener("resize", ()=>{
+    if(window.visualViewport.scale !== 1) window.scrollTo(0, window.scrollY);
+  });
+}
 
 function sheet(title, bodyHtml, opts={}){
   const html = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
@@ -1570,17 +1610,34 @@ const AIAgent = {
     return `You are the InflowMap planning agent — an action-taking assistant inside a personal study planner.
 You help the user plan, restructure and analyse their study routine. Understand Bengali, English and mixed commands.
 
+TODAY'S DATE: ${todayISO()}
+
 RULES:
-- Today's date is ${todayISO()}.
 - Resolve references like "এই দিন", "today", "এই task" using the CONTEXT block.
 - Never invent task ids. If you need ids, first call getDay / searchApp.
 - To CHANGE the plan, return a JSON object in a fenced block \`\`\`json ... \`\`\` of the form:
-  { "summary": "short description", "actions": [ { "action":"move_task", "taskId":"...", "targetDayNumber": 26 }, ... ] }
-  Valid actions: move_task, copy_task, delete_task, duplicate_task, update_task, complete_task, create_task, create_routine, create_note.
-- For create_task include dayNumber, subject, title. For create_routine include name, duration, startDate, plan (array of {subjects:[{name,topics:[]}]} in day order).
+  { "summary": "short description", "actions": [ { "action":"move_task", "taskId":"...", "targetDayNumber": 26 } ] }
 - If no change is needed, answer normally in prose, without a JSON block.
-- Keep prose short. Do not produce destructive changes without listing them as actions.
-- All changes are shown to the user as a diff and only applied after approval.`;
+- Keep prose short. All changes are shown to the user as a diff and applied only after approval.
+
+BUILDING A COMPLETE ROUTINE (the user is asking you to create a study plan from scratch):
+- This is your strongest capability. When the user wants a new plan, you may EITHER ask a few clarifying
+  questions first (preferred when goal/subjects/duration are unclear) OR, if you already have enough
+  (goal, subjects, number of days), generate the plan immediately.
+- Ask at most 3 short questions, only about things you truly need: exam/goal, subjects to cover,
+  duration in days, start date, daily study time, and whether they want spaced revision. Do not over-ask.
+- Bengali question example: "কোন exam-এর জন্য? কোন কোন subject? কত দিনের plan চাই?"
+- When generating, produce ONE action:
+  { "action":"create_routine", "name":"...", "duration": 90, "startDate":"YYYY-MM-DD",
+    "plan": [ { "subjects":[ { "name":"বাংলা", "topics":["সন্ধি","সমাস"] }, { "name":"English","topics":["Tense"] } ] }, ... ] }
+- "plan" MUST be an array whose length equals "duration": one entry per day, in order (day 1 first).
+- Every day entry has a "subjects" array; every subject has a "name" and a "topics" array of concrete topics.
+- Use real, specific topics appropriate to the goal (e.g. "সমাস", "Tense", "মুক্তিযুদ্ধ", "Algebra") — never placeholders.
+- Build a realistic progression: cover the syllabus across the days, leave lighter/revision days, and put
+  revision of earlier material on later days rather than repeating a fixed list every day.
+- Keep subjects consistent in naming so progress tracking groups them correctly.
+- duration must be between 1 and 1000. startDate defaults to today (${todayISO()}) if unspecified.
+- Never ask the user to paste JSON. You produce the plan; the app shows it as a preview for approval.`;
   },
 
   async send(userText){
@@ -1703,8 +1760,29 @@ function validateAction(a, r){
       return { act, title:String(a.title||"Note").slice(0,120), content:String(a.content||""), label:`Create note "${a.title||"Note"}"` };
     }
     case "create_routine": {
+      const name = String(a.name||"New Routine").trim().slice(0,80) || "New Routine";
       const duration = clamp(int(a.duration)||30,1,1000);
-      return { act, name:String(a.name||"New Routine").slice(0,80), duration, startDate:a.startDate||todayISO(), plan:Array.isArray(a.plan)?a.plan:[], label:`Create routine "${a.name}" (${duration} days)` };
+      let startDate = a.startDate||todayISO();
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) startDate = todayISO();
+      const rawPlan = Array.isArray(a.plan) ? a.plan : [];
+      if(!rawPlan.length) throw new Error("The plan had no days.");
+      // normalise each day -> { subjects:[{name, topics:[...]}] }, dropping empties
+      const plan = [];
+      for(let i=0;i<Math.min(duration, rawPlan.length);i++){
+        const d = rawPlan[i] || {};
+        const subs = Array.isArray(d.subjects) ? d.subjects : [];
+        const subjects = subs.map(s=>({
+          name: String(s?.name||"General").trim().slice(0,60) || "General",
+          topics: (Array.isArray(s?.topics)? s.topics : []).map(t=>String(t).trim()).filter(Boolean).slice(0,40)
+        })).filter(s=>s.topics.length);
+        plan.push({ subjects });
+      }
+      while(plan.length < duration) plan.push({ subjects:[] });
+      const taskCount = plan.reduce((a,d)=>a+d.subjects.reduce((b,s)=>b+s.topics.length,0),0);
+      if(taskCount===0) throw new Error("The plan had no tasks to create.");
+      const activeDays = plan.filter(d=>d.subjects.length).length;
+      return { act, name, duration, startDate, plan, taskCount, activeDays,
+        label:`Create routine "${name}"`, summary:`${duration} days · ${taskCount} tasks across ${activeDays} day(s) · starts ${fmtDate(startDate)}` };
     }
     default: throw new Error("Unsupported action: "+act);
   }
@@ -1750,9 +1828,19 @@ function proposalDiffHtml(pending){
   const r = Store.primaryRoutine();
   return pending.ops.map(op=>{
     if(op.act==="create_routine"){
-      return `<div class="diff-add" style="margin-bottom:8px"><div style="font-weight:650;font-size:13px">+ New routine</div>
-        <div style="font-size:13px">${esc(op.name)} · ${op.duration} days from ${esc(fmtDate(op.startDate))}</div>
-        <div class="muted2" style="font-size:12px">${op.plan.length} day(s) with tasks</div></div>`;
+      const days = op.plan.filter(d=>d.subjects.length);
+      const previewCount = Math.min(days.length, 5);
+      const shown = days.slice(0, previewCount).map((d,i)=>{
+        const idx = op.plan.indexOf(d)+1;
+        const subs = d.subjects.map(s=>`<div style="margin-top:4px"><b>${esc(s.name)}</b> · ${s.topics.map(t=>esc(t)).join(", ")}</div>`).join("");
+        return `<div style="margin-top:8px;padding-left:8px;border-left:2px solid var(--success)">
+          <div style="font-size:11px;font-weight:700;color:var(--text-2)">DAY ${String(idx).padStart(2,"0")}</div>${subs}</div>`;
+      }).join("");
+      const more = days.length > previewCount ? `<div class="muted2" style="font-size:12px;margin-top:8px">+ ${days.length-previewCount} more day(s)…</div>` : "";
+      return `<div class="diff-add" style="margin-bottom:8px">
+        <div style="font-weight:650;font-size:13px">+ ${esc(op.label)}</div>
+        <div style="font-size:12.5px;margin-top:2px">${esc(op.summary||"")}</div>
+        ${shown}${more}</div>`;
     }
     if(op.act==="create_task" || op.act==="copy_task" || op.act==="duplicate_task"){
       return `<div class="diff-add" style="margin-bottom:8px"><div style="font-weight:650;font-size:13px">+ ${esc(op.label)}</div></div>`;
@@ -1781,7 +1869,7 @@ function ScreenAI(){
   return `<div class="screen" style="padding:0 0 8px;display:flex;flex-direction:column;min-height:calc(100dvh - 60px)">
     <header style="padding:18px 16px 10px;display:flex;align-items:center;gap:10px">
       <div style="flex:1"><h1 style="margin:0;font-size:21px;font-weight:700">AI</h1>
-      <p class="muted2" style="margin:2px 0 0;font-size:12px">${AIService.configured()?"Gemini · "+esc(s.settings.ai.model):"Not configured"}</p></div>
+      <p class="muted2" style="margin:2px 0 0;font-size:12px">${AIService.configured()? esc(AIService.provider().name)+" · "+esc(s.settings.ai.model) : "Not configured"}</p></div>
       <button class="btn btn-icon btn-ghost" data-act="ai-config" aria-label="AI settings">${icon("settings",undefined,19)}</button>
     </header>
     <div id="ai-scroll" style="flex:1;overflow-y:auto;padding:6px 16px 8px">
@@ -1796,12 +1884,25 @@ function ScreenAI(){
   </div>`;
 }
 function aiEmptyState(){
-  const chips = ["আগামী তিন দিনের workload balance কর","আজকের incomplete কাজ পরের ৩ দিনে ভাগ কর","পরের ৭ দিন revision-heavy plan সাজাও"];
+  const build = [
+    "আমার জন্য একটা ৩০ দিনের admission preparation routine বানাও",
+    "Create a 14-day English revision plan for me",
+    "৯০ দিনের রুটিন বানাও — বাংলা, English, GK আর Math"
+  ];
+  const tweak = [
+    "আগামী তিন দিনের workload balance কর",
+    "আজকের incomplete কাজ পরের ৩ দিনে ভাগ কর",
+    "পরের ৭ দিন revision-heavy plan সাজাও"
+  ];
   return `<div style="padding:24px 4px">
     <div style="width:48px;height:48px;border-radius:16px;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;margin-bottom:14px">${icon("sparkle",undefined,24)}</div>
     <h2 style="margin:0 0 6px;font-size:17px;font-weight:650">Your planning agent</h2>
-    <p class="muted" style="margin:0 0 16px;font-size:14px">It can see your routine, today's work and progress — and proposes changes for your approval before anything is saved.</p>
-    ${chips.map(c=>`<button class="card" data-ai-chip="${esc(c)}" style="width:100%;text-align:left;padding:12px;margin-bottom:8px;display:block;font-size:14px">${esc(c)}</button>`).join("")}
+    <p class="muted" style="margin:0 0 18px;font-size:14px">It can build a whole routine for you, and see your existing plan to suggest changes — always showing a preview before anything is saved.</p>
+    <div class="label">Build a new routine</div>
+    ${build.map(c=>`<button class="card" data-ai-chip="${esc(c)}" style="width:100%;text-align:left;padding:12px;margin-bottom:8px;display:flex;gap:10px;align-items:center;font-size:14px">
+      <span style="color:var(--primary);flex:0 0 auto">${icon("plus",undefined,16)}</span><span class="bn" style="flex:1">${esc(c)}</span></button>`).join("")}
+    <div class="label" style="margin-top:16px">Adjust my current plan</div>
+    ${tweak.map(c=>`<button class="card bn" data-ai-chip="${esc(c)}" style="width:100%;text-align:left;padding:12px;margin-bottom:8px;display:block;font-size:14px">${esc(c)}</button>`).join("")}
   </div>`;
 }
 function msgBubble(m){
@@ -1821,7 +1922,7 @@ function msgBubble(m){
 function renderAIScreenScroll(){ const sc=$("#ai-scroll"); if(sc) sc.scrollTop = sc.scrollHeight; }
 
 const AI_QUICK_PROMPTS = {
-  "new-routine":"I want to build a new study routine. Ask me what you need to know first.",
+  "new-routine":"I want you to build a complete new study routine for me. Ask me only what you need (goal, subjects, duration), then generate the full plan.",
   "bulk-routine":"Help me structure a routine from a pasted plan."
 };
 
@@ -2296,7 +2397,7 @@ function openGoToDate(){
 /* ============================ ROUTINE CREATION FLOWS ============================ */
 function openRoutineCreator(mode="manual"){
   if(mode==="bulk") return openBulkCreator();
-  if(mode==="ai"){ navTo("ai"); return pushAI("I want to create a new study routine. Ask me the questions you need first."); }
+  if(mode==="ai"){ navTo("ai"); return pushAI("I want you to build a complete new study routine for me. Ask me only what you need (goal, subjects, duration), then generate the full plan."); }
   const layer = sheet("New routine", `
     <label class="label" for="nr-name">Routine name</label>
     <input class="input" id="nr-name" placeholder="e.g. 90-Day Admission" style="margin-bottom:12px">
