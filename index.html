@@ -2054,6 +2054,10 @@ function routineQuestion(d){
 function routineInterview(text){
   const s=Store.s, existing=s.ui.aiRoutineDraft;
   if(!existing && isGreeting(text)) return { reply:"হাই! আমি তোমার জন্য study routine বানাতে পারি। শুরু করতে exam/goal, subject আর কত দিনের plan চাই তা বলো।" };
+  if(existing && existing.goal && existing.subjects?.length && existing.duration &&
+     !hasRoutineIntent(text) && !routineSubjects(text).length &&
+     !/(?:retry|আবার|পুনরায়|পুনরায়|generate|বানাও|create)/iu.test(text) &&
+     !/\d+\s*(?:দিন|days?|day)/iu.test(bengaliDigits(text))) return null;
   if(!existing && !hasRoutineIntent(text) && !routineSubjects(text).length) return null;
   const draft=existing || { active:true, goal:"", subjects:[], duration:null, startDate:todayISO() };
   updateRoutineDraft(text,draft);
@@ -2071,6 +2075,7 @@ function finishAIRequest(request, options={}){
         const pending = await AIAgent.stage(proposal.actions, proposal.summary);
         msg.pending = { diffHtml: proposalDiffHtml(pending), problems: pending.problems, summary: pending.summary };
         msg.content = (reply || "").trim() || "Here's what I suggest changing:";
+        if(options.routineDraft && proposal.actions.some(a=>a.action==="create_routine")) Store.s.ui.aiRoutineDraft=null;
       }catch(e){ msg.content = (reply||"") + "\n\n" + e.message; }
     }
     Store.s.ui.aiMessages.push(msg);
