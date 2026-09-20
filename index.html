@@ -378,7 +378,7 @@ const Store = (() => {
     ready:false,
     settings:{ id:"app", theme:"system", primaryRoutineId:null, ai:{ provider:"groq", apiKey:"", model:"openai/gpt-oss-120b" } },
     routines:[], days:[], subjects:[], tasks:[], notes:[], sessions:[], templates:[], aichanges:[],
-    ui:{ screen:"home", routineView:"all", focusDayId:null, editingTaskId:null, aiContext:null, searchQuery:"" }
+    ui:{ screen:"home", routineView:"all", focusDayId:null, editingTaskId:null, aiContext:null, searchQuery:"", aiRoutineDraft:null }
   };
   const subs = new Set();
   const emit = () => subs.forEach(f=>{ try{f(state);}catch(e){ console.error(e); } });
@@ -1626,6 +1626,8 @@ BUILDING A COMPLETE ROUTINE (the user is asking you to create a study plan from 
   (goal, subjects, number of days), generate the plan immediately.
 - Ask at most 3 short questions, only about things you truly need: exam/goal, subjects to cover,
   duration in days, start date, daily study time, and whether they want spaced revision. Do not over-ask.
+- If a ROUTINE INTERVIEW block is present, all required fields are already collected. Do not ask another
+  question; generate the complete plan immediately.
 - Bengali question example: "কোন exam-এর জন্য? কোন কোন subject? কত দিনের plan চাই?"
 - When generating, produce ONE action:
   { "action":"create_routine", "name":"...", "duration": 90, "startDate":"YYYY-MM-DD",
@@ -1640,7 +1642,7 @@ BUILDING A COMPLETE ROUTINE (the user is asking you to create a study plan from 
 - Never ask the user to paste JSON. You produce the plan; the app shows it as a preview for approval.`;
   },
 
-  async send(userText){
+  async send(userText, options={}){
     this.lastError=null;
     const ctx = this.contextSnapshot();
     const r = Store.primaryRoutine();
@@ -1649,13 +1651,13 @@ BUILDING A COMPLETE ROUTINE (the user is asking you to create a study plan from 
     const contextBlock = `CONTEXT:\n${JSON.stringify(ctx)}\n` +
       (focusedDay? `USER IS VIEWING: Day ${focusedDay.dayNumber} (${focusedDay.date})\n`:"") +
       (focusTask? `USER SELECTED TASK: ${focusTask.id} "${focusTask.title}"\n`:"") +
-      (Store.s.ui.aiContext? `SCREEN CONTEXT: ${Store.s.ui.aiContext}\n`:"");
+      (Store.s.ui.aiContext? `SCREEN CONTEXT: ${Store.s.ui.aiContext}\n`:"") +
+      (options.routineDraft ? `ROUTINE INTERVIEW (already collected; do not ask more questions):\n${JSON.stringify(options.routineDraft)}\n`:"");
 
     // prior turns
     const history = (Store.s.ui.aiMessages||[]).slice(-8).map(m=>({ role:m.role, content:m.content }));
     const messages = [ { role:"user", content: contextBlock + "\nUSER REQUEST:\n" + userText } ];
     // fold history before the request for continuity
-    history.slice(0,-0).forEach(h=>{});
     const conversation = [...history.slice(0,-1).filter(h=>!h.pending), ...messages]; // don't feed pending previews
 
     const replies = [];
@@ -1868,19 +1870,27 @@ function ScreenAI(){
   const busy = AIAgent.busy;
   return `<div class="screen" style="padding:0 0 8px;display:flex;flex-direction:column;min-height:calc(100dvh - 60px)">
     <header style="padding:18px 16px 10px;display:flex;align-items:center;gap:10px">
-      <div style="flex:1"><h1 style="margin:0;font-size:21px;font-weight:700">AI</h1>
-      <p class="muted2" style="margin:2px 0 0;font-size:12px">${AIService.configured()? esc(AIService.provider().name)+" · "+esc(s.settings.ai.model) : "Not configured"}</p></div>
+       <div style="flex:1"><h1 style="margin:0;font-size:21px;font-weight:700">AI</h1>
+       <p class="muted2" style="margin:2px 0 0;font-size:12px">${AIService.configured()? esc(AIService.provider().name)+" · "+esc(s.settings.ai.model) : "Not configured"}</p></div>
       <button class="btn btn-icon btn-ghost" data-act="ai-config" aria-label="AI settings">${icon("settings",undefined,19)}</button>
     </header>
     <div id="ai-scroll" style="flex:1;overflow-y:auto;padding:6px 16px 8px">
       ${msgs.length? msgs.map(m=>msgBubble(m)).join("") : aiEmptyState()}
       ${busy?`<div class="card" style="padding:12px;margin-bottom:10px;max-width:80%"><div class="skeleton" style="height:14px;width:70%;margin-bottom:6px"></div><div class="skeleton" style="height:14px;width:45%"></div></div>`:""}
     </div>
-    ${!AIService.configured()?`<div style="padding:0 16px 8px"><button class="btn btn-primary" data-act="ai-config" style="width:100%">${icon("key",undefined,17)} Connect Gemini</button></div>`:""}
+     ${s.ui.aiRoutineDraft ? routineDraftBanner(s.ui.aiRoutineDraft) : ""}
+     ${!AIService.configured()?`<div style="padding:0 16px 8px"><button class="btn btn-primary" data-act="ai-config" style="width:100%">${icon("key",undefined,17)} Connect ${esc(AIService.provider().name)}</button></div>`:""}
     <div style="padding:8px 12px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--border);background:var(--surface);display:flex;gap:8px;align-items:flex-end">
       <textarea id="ai-input" class="input" rows="1" placeholder="Ask anything about your plan…" style="min-height:44px;max-height:120px;resize:none"></textarea>
       <button class="btn btn-primary btn-icon" data-act="ai-send" aria-label="Send" ${busy?"disabled":""}>${icon("sparkle",undefined,20)}</button>
     </div>
+  </div>`;
+}
+function routineDraftBanner(d){
+  const subjects = d.subjects?.length ? d.subjects.join(", ") : "Not set";
+  return `<div style="margin:0 16px 8px;padding:10px 12px;border:1px solid var(--primary);border-radius:var(--r-md);background:var(--primary-soft);font-size:12px">
+    <div style="font-weight:700;color:var(--primary);margin-bottom:3px">Routine builder</div>
+    <div class="muted2">${d.goal?esc(d.goal):"Goal not set"} · ${esc(subjects)} · ${d.duration?esc(String(d.duration))+" days":"Duration not set"}</div>
   </div>`;
 }
 function aiEmptyState(){
@@ -2001,13 +2011,60 @@ function openAIConfig(prefillContext){
 }
 
 /* conversation flow */
-function pushAI(text){
-  const s = Store.s;
-  if(!s.ui.aiMessages) s.ui.aiMessages = [];
-  s.ui.aiMessages.push({ role:"user", content:text });
-  Store.emit();
-  AIAgent.busy = true; Store.emit();
-  AIAgent.send(text).then(async ({ text:reply, proposal })=>{
+const ROUTINE_SUBJECT_ALIASES = [
+  ["বাংলা", ["বাংলা", "bangla", "bengali"]], ["English", ["english", "ইংরেজি"]],
+  ["Math", ["math", "গণিত", "mathematics"]], ["GK", ["gk", "general knowledge", "সাধারণ জ্ঞান"]],
+  ["Science", ["science", "বিজ্ঞান"]], ["ICT", ["ict", "আইসিটি"]], ["Physics", ["physics", "পদার্থবিজ্ঞান"]],
+  ["Chemistry", ["chemistry", "রসায়ন", "রসায়ন"]], ["Biology", ["biology", "জীববিজ্ঞান"]]
+];
+function bengaliDigits(text){
+  return String(text||"").replace(/[০-৯]/g, d=>"০১২৩৪৫৬৭৮৯".indexOf(d));
+}
+function isGreeting(text){ return /^(হাই|হ্যালো|hello|hi|hey|ভাই|bhai)[\s!.?।]*$/iu.test(String(text||"").trim()); }
+function hasRoutineIntent(text){ return /(routine|study plan|plan|রুটিন|প্ল্যান|পরিকল্পনা|পড়ার সময়সূচি|পড়ার সময়সূচি)/iu.test(String(text||"")); }
+function routineSubjects(text){
+  const t=String(text||"").toLowerCase();
+  return ROUTINE_SUBJECT_ALIASES.filter(([,aliases])=>aliases.some(a=>t.includes(a.toLowerCase()))).map(([name])=>name);
+}
+function cleanRoutineGoal(text){
+  return String(text||"").replace(/[০-৯\d]+\s*(?:দিন|days?|day)/giu, " ")
+    .replace(/(?:আমার জন্য|please|আমাকে|একটা|একটি|বানাও|বনাও|create|make|build|routine|study plan|plan|রুটিন|প্ল্যান|পরিকল্পনা)/giu, " ")
+    .replace(/[—–,:;|]+/g," ").replace(/\s+/g," ").trim().replace(/^(?:এর জন্য|for)\s+/iu,"");
+}
+function updateRoutineDraft(text, draft){
+  const raw=String(text||"").trim(), t=bengaliDigits(raw);
+  const duration=t.match(/(\d{1,4})\s*(?:দিন|days?|day)/iu);
+  if(duration) draft.duration=clamp(parseInt(duration[1],10),1,1000);
+  const found=routineSubjects(raw);
+  draft.subjects=[...new Set([...(draft.subjects||[]), ...found])];
+  const explicit=t.match(/(?:goal|exam|target|লক্ষ্য|পরীক্ষা)\s*[:：-]?\s*(.+)$/iu);
+  let goal=explicit?.[1] || "";
+  if(!goal && /(admission|ভর্তি|bcs|job|চাকরি|hsc|ssc|ielts|toefl|exam|পরীক্ষা)/iu.test(raw)) goal=raw;
+  if(!goal && draft.active && !found.length && !duration && !hasRoutineIntent(raw) && raw.length>2) goal=raw;
+  goal=cleanRoutineGoal(goal);
+  if(goal) draft.goal=goal.slice(0,120);
+  return draft;
+}
+function routineQuestion(d){
+  if(!d.goal) return "ঠিক আছে। কোন exam বা লক্ষ্য সামনে রেখে routine বানাব? যেমন: admission, BCS, HSC বা IELTS.";
+  if(!d.subjects?.length) return "কোন কোন subject পড়বে? কমা দিয়ে লিখতে পারো, যেমন: বাংলা, English, GK, Math.";
+  if(!d.duration) return "কত দিনের routine চাই? যেমন: ৩০ দিন বা ৯০ দিন.";
+  return "";
+}
+function routineInterview(text){
+  const s=Store.s, existing=s.ui.aiRoutineDraft;
+  if(!existing && isGreeting(text)) return { reply:"হাই! আমি তোমার জন্য study routine বানাতে পারি। শুরু করতে exam/goal, subject আর কত দিনের plan চাই তা বলো।" };
+  if(!existing && !hasRoutineIntent(text) && !routineSubjects(text).length) return null;
+  const draft=existing || { active:true, goal:"", subjects:[], duration:null, startDate:todayISO() };
+  updateRoutineDraft(text,draft);
+  s.ui.aiRoutineDraft=draft;
+  const question=routineQuestion(draft);
+  if(question) return { reply:question };
+  return { draft, generate:true };
+}
+function finishAIRequest(request, options={}){
+  AIAgent.busy=true; Store.emit();
+  AIAgent.send(request,options).then(async ({ text:reply, proposal })=>{
     const msg = { role:"assistant", content: reply || "Done." };
     if(proposal){
       try{
@@ -2016,12 +2073,28 @@ function pushAI(text){
         msg.content = (reply || "").trim() || "Here's what I suggest changing:";
       }catch(e){ msg.content = (reply||"") + "\n\n" + e.message; }
     }
-    s.ui.aiMessages.push(msg);
+    Store.s.ui.aiMessages.push(msg);
     AIAgent.busy=false; Store.emit(); setTimeout(renderAIScreenScroll, 50);
   }).catch(err=>{
-    const s2=Store.s; s2.ui.aiMessages.push({ role:"assistant", content: err.message || "AI is temporarily unavailable. Your local study data is still safe." });
+    Store.s.ui.aiMessages.push({ role:"assistant", content: err.message || "AI is temporarily unavailable. Your local study data is still safe." });
     AIAgent.busy=false; Store.emit(); setTimeout(renderAIScreenScroll,50);
   });
+}
+function pushAI(text){
+  const s = Store.s;
+  if(!s.ui.aiMessages) s.ui.aiMessages = [];
+  s.ui.aiMessages.push({ role:"user", content:text });
+  const interview=routineInterview(text);
+  if(interview){
+    if(interview.generate){
+      finishAIRequest("Generate the complete routine now. Do not ask any more questions. Return exactly one fenced JSON proposal with one create_routine action.", { routineDraft:interview.draft });
+    }else{
+      s.ui.aiMessages.push({ role:"assistant", content:interview.reply });
+      Store.emit(); setTimeout(renderAIScreenScroll,50);
+    }
+    return;
+  }
+  finishAIRequest(text);
 }
 </script>
 
