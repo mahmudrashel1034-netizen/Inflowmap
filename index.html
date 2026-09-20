@@ -1,0 +1,2610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<title>InflowMap</title>
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --font-sans:'Inter','Noto Sans Bengali',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:20px; --r-full:9999px;
+    --sh-sm:0 1px 2px rgba(0,0,0,.05);
+    --sh-md:0 2px 8px rgba(0,0,0,.06);
+    --sh-lg:0 8px 24px rgba(0,0,0,.10);
+    --dur-fast:120ms; --dur:180ms; --dur-slow:260ms;
+    --ease:cubic-bezier(.4,0,.2,1);
+    --touch:44px;
+  }
+  html[data-theme="light"]{
+    --bg:#f6f7f9; --surface:#ffffff; --surface-2:#f1f3f6; --surface-3:#e8ebf0;
+    --border:#e3e6ec; --border-strong:#d3d8e0;
+    --text:#14181f; --text-2:#566072; --text-3:#8b93a3;
+    --primary:#3b5bdb; --primary-soft:#e8ecfb; --primary-contrast:#ffffff;
+    --accent:#0ea5a4; --accent-soft:#e0f5f4;
+    --success:#109c67; --success-soft:#e3f5ec;
+    --danger:#d6455b; --danger-soft:#fbe9ec;
+    --warn:#b7791f; --warn-soft:#fdf3e3;
+    --shadow:var(--sh-md);
+  }
+  html[data-theme="dark"]{
+    --bg:#0d0f14; --surface:#151922; --surface-2:#1b202b; --surface-3:#232a37;
+    --border:#242c3a; --border-strong:#323c4d;
+    --text:#eef1f7; --text-2:#9aa4b8; --text-3:#6b7688;
+    --primary:#6b8afd; --primary-soft:#1c2540; --primary-contrast:#0d0f14;
+    --accent:#2dd4bf; --accent-soft:#123a37;
+    --success:#34d399; --success-soft:#12312a;
+    --danger:#f87171; --danger-soft:#3a1a1e;
+    --warn:#fbbf24; --warn-soft:#3a2f12;
+    --shadow:0 2px 10px rgba(0,0,0,.4);
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; height:100%; }
+  body{
+    font-family:var(--font-sans); background:var(--bg); color:var(--text);
+    font-size:15px; line-height:1.5; overflow-x:hidden;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  }
+  @media (prefers-reduced-motion: reduce){ *{ animation-duration:.01ms !important; transition-duration:.01ms !important; } }
+  button{ font-family:inherit; cursor:pointer; border:none; background:none; color:inherit; }
+  input,select,textarea{ font-family:inherit; font-size:15px; color:inherit; }
+  :focus-visible{ outline:2px solid var(--primary); outline-offset:2px; border-radius:4px; }
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb{ background:var(--border-strong); border-radius:8px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+  .bn{ font-family:'Noto Sans Bengali','Inter',sans-serif; }
+
+  /* Layout */
+  #app{ max-width:640px; margin:0 auto; min-height:100dvh; background:var(--bg);
+        padding-bottom:calc(72px + env(safe-area-inset-bottom)); position:relative; }
+  @media(min-width:900px){
+    body{ background:var(--bg); }
+    #app{ max-width:760px; box-shadow:0 0 0 1px var(--border); }
+  }
+  .screen{ animation:fade var(--dur) var(--ease); }
+  @keyframes fade{ from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none} }
+
+  /* Components */
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); }
+  .btn{ min-height:var(--touch); padding:0 18px; border-radius:var(--r-md); font-weight:600;
+        font-size:14px; display:inline-flex; align-items:center; justify-content:center; gap:8px;
+        transition:background var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease), opacity var(--dur-fast); }
+  .btn:active:not(:disabled){ transform:scale(.97); }
+  .btn:disabled{ opacity:.45; cursor:not-allowed; }
+  .btn-primary{ background:var(--primary); color:var(--primary-contrast); }
+  .btn-primary:hover:not(:disabled){ filter:brightness(1.06); }
+  .btn-ghost{ background:var(--surface-2); color:var(--text); }
+  .btn-ghost:hover:not(:disabled){ background:var(--surface-3); }
+  .btn-outline{ background:transparent; border:1px solid var(--border-strong); color:var(--text); }
+  .btn-danger{ background:var(--danger-soft); color:var(--danger); }
+  .btn-sm{ min-height:36px; padding:0 12px; font-size:13px; border-radius:var(--r-sm); }
+  .btn-icon{ min-height:var(--touch); width:var(--touch); padding:0; border-radius:var(--r-md); }
+
+  .input{ width:100%; min-height:var(--touch); padding:10px 14px; background:var(--surface-2);
+          border:1px solid var(--border); border-radius:var(--r-md); transition:border-color var(--dur-fast), background var(--dur-fast); }
+  .input:focus{ outline:none; border-color:var(--primary); background:var(--surface); }
+  textarea.input{ min-height:88px; resize:vertical; line-height:1.55; }
+  .label{ font-size:12px; font-weight:600; color:var(--text-2); margin-bottom:6px; display:block; letter-spacing:.01em; }
+
+  .chip{ display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:var(--r-full);
+         font-size:13px; font-weight:500; background:var(--surface-2); color:var(--text-2); border:1px solid transparent;
+         white-space:nowrap; flex:0 0 auto; }
+  .chip[aria-pressed="true"], .chip.active{ background:var(--primary-soft); color:var(--primary); border-color:var(--primary); }
+  .tag{ font-size:11px; padding:3px 9px; border-radius:var(--r-full); font-weight:600; white-space:nowrap; }
+  .t-soft{ background:var(--surface-3); color:var(--text-2); }
+  .t-primary{ background:var(--primary-soft); color:var(--primary); }
+  .t-success{ background:var(--success-soft); color:var(--success); }
+  .t-danger{ background:var(--danger-soft); color:var(--danger); }
+
+  .divider{ height:1px; background:var(--border); border:0; margin:0; }
+  .muted{ color:var(--text-2); } .muted2{ color:var(--text-3); }
+
+  /* Progress */
+  .bar{ height:8px; background:var(--surface-3); border-radius:var(--r-full); overflow:hidden; }
+  .bar > i{ display:block; height:100%; background:var(--primary); border-radius:var(--r-full);
+            transition:width var(--dur-slow) var(--ease); }
+  .bar.success > i{ background:var(--success); }
+
+  /* Bottom nav */
+  .nav{ position:fixed; bottom:0; left:0; right:0; z-index:40; background:color-mix(in srgb, var(--surface) 92%, transparent);
+        backdrop-filter:blur(12px); border-top:1px solid var(--border);
+        padding-bottom:env(safe-area-inset-bottom); }
+  .nav-inner{ max-width:640px; margin:0 auto; display:grid; grid-template-columns:repeat(5,1fr); }
+  @media(min-width:900px){ .nav-inner{ max-width:760px; } }
+  .nav-btn{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+            min-height:60px; color:var(--text-3); font-size:11px; font-weight:500; position:relative;
+            transition:color var(--dur-fast); }
+  .nav-btn.active{ color:var(--primary); }
+  .nav-btn svg{ width:22px; height:22px; }
+  .nav-btn.active::after{ content:''; position:absolute; top:0; width:24px; height:2px; border-radius:0 0 2px 2px; background:var(--primary); }
+
+  /* Sheet / modal */
+  .scrim{ position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:50; animation:fade var(--dur) var(--ease); }
+  .sheet{ position:fixed; left:0; right:0; bottom:0; z-index:51; background:var(--surface);
+          border-radius:var(--r-xl) var(--r-xl) 0 0; max-width:640px; margin:0 auto;
+          max-height:88dvh; display:flex; flex-direction:column; animation:up var(--dur-slow) var(--ease);
+          padding-bottom:env(safe-area-inset-bottom); }
+  @media(min-width:900px){ .sheet{ max-width:760px; } }
+  @keyframes up{ from{transform:translateY(100%)} to{transform:none} }
+  .sheet-head{ padding:14px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+  .sheet-body{ padding:16px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .sheet-grab{ width:36px; height:4px; border-radius:2px; background:var(--border-strong); margin:8px auto 0; }
+
+  .menu-item{ display:flex; align-items:center; gap:12px; width:100%; min-height:50px; padding:0 8px;
+              border-radius:var(--r-md); font-size:15px; font-weight:500; text-align:left; transition:background var(--dur-fast); }
+  .menu-item:hover{ background:var(--surface-2); }
+  .menu-item.danger{ color:var(--danger); }
+
+  /* Task row */
+  .task{ display:flex; align-items:flex-start; gap:12px; padding:10px 6px; border-radius:var(--r-md);
+         transition:background var(--dur-fast); position:relative; }
+  .task:hover{ background:var(--surface-2); }
+  .task.dragging{ opacity:.5; }
+  .task.drop-target{ box-shadow:inset 0 2px 0 var(--primary); }
+  .check{ width:24px; height:24px; flex:0 0 24px; border-radius:var(--r-full); border:2px solid var(--border-strong);
+          display:flex; align-items:center; justify-content:center; transition:all var(--dur) var(--ease); margin-top:1px; }
+  .check svg{ width:14px; height:14px; opacity:0; transform:scale(.6); transition:all var(--dur) var(--ease); }
+  .task.done .check{ background:var(--success); border-color:var(--success); }
+  .task.done .check svg{ opacity:1; transform:scale(1); color:#fff; }
+  .task.done .task-title{ color:var(--text-3); text-decoration:line-through; }
+  .task-title{ font-size:15px; line-height:1.45; word-break:break-word; }
+  .task.completing{ animation:pulse var(--dur-slow) var(--ease); }
+  @keyframes pulse{ 0%{background:var(--success-soft)} 100%{background:transparent} }
+
+  .grip{ color:var(--text-3); opacity:.6; cursor:grab; touch-action:none; padding:2px; }
+  .grip:active{ cursor:grabbing; }
+
+  .day-card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg);
+             transition:box-shadow var(--dur) var(--ease), border-color var(--dur); }
+  .day-card.today{ border-color:var(--primary); box-shadow:0 0 0 1px var(--primary); }
+  .day-card.complete{ background:var(--surface-2); }
+  .day-head{ display:flex; align-items:center; gap:12px; padding:14px 16px; }
+  .day-body{ padding:0 16px 14px; animation:slide var(--dur) var(--ease); }
+  @keyframes slide{ from{opacity:0; max-height:0} to{opacity:1; max-height:2000px} }
+
+  .subject-block{ margin-bottom:10px; }
+  .subject-name{ font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text-2); margin:10px 6px 2px; }
+
+  .empty{ text-align:center; padding:56px 24px; }
+  .empty h3{ font-size:17px; font-weight:600; margin:0 0 6px; }
+  .empty p{ color:var(--text-2); font-size:14px; margin:0 0 20px; }
+
+  .toast-wrap{ position:fixed; bottom:calc(76px + env(safe-area-inset-bottom)); left:0; right:0; z-index:60;
+               display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none; padding:0 16px; }
+  .toast{ background:var(--surface-3); color:var(--text); border:1px solid var(--border-strong);
+          padding:10px 16px; border-radius:var(--r-md); font-size:14px; box-shadow:var(--shadow);
+          animation:tin var(--dur) var(--ease); max-width:420px; pointer-events:auto; }
+  @keyframes tin{ from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:none} }
+
+  .diff-add{ background:var(--success-soft); border-left:3px solid var(--success); padding:6px 10px; border-radius:6px; }
+  .diff-del{ background:var(--danger-soft); border-left:3px solid var(--danger); padding:6px 10px; border-radius:6px; text-decoration:line-through; }
+  .diff-mod{ background:var(--warn-soft); border-left:3px solid var(--warn); padding:6px 10px; border-radius:6px; }
+
+  .skeleton{ background:linear-gradient(90deg,var(--surface-2) 25%,var(--surface-3) 50%,var(--surface-2) 75%);
+             background-size:200% 100%; animation:sh 1.2s infinite; border-radius:var(--r-sm); }
+  @keyframes sh{ 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+  .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  .scroll-x{ display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
+  .scroll-x::-webkit-scrollbar{ display:none; }
+  .rte-toolbar{ display:flex; gap:4px; flex-wrap:wrap; padding:8px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--surface); z-index:1; }
+  .rte-btn{ min-width:36px; height:36px; border-radius:var(--r-sm); display:flex; align-items:center; justify-content:center;
+            font-size:14px; font-weight:600; color:var(--text-2); }
+  .rte-btn:hover{ background:var(--surface-2); color:var(--text); }
+  .rte{ min-height:240px; padding:16px; outline:none; font-size:15px; line-height:1.65; }
+  .rte:empty:before{ content:attr(data-placeholder); color:var(--text-3); }
+  .rte h1{ font-size:22px; font-weight:700; margin:14px 0 8px; }
+  .rte h2{ font-size:18px; font-weight:600; margin:12px 0 6px; }
+  .rte ul,.rte ol{ padding-left:22px; margin:8px 0; }
+  .rte li{ margin:3px 0; }
+  .rte a{ color:var(--primary); }
+  .rte-blocker{ position:fixed; inset:0; z-index:70; background:transparent; }
+</style>
+</head>
+<body>
+<div id="app" role="application" aria-label="InflowMap study planner"></div>
+<div id="layers" aria-live="polite"></div>
+<div class="toast-wrap" id="toasts" aria-live="polite"></div>
+<noscript>InflowMap requires JavaScript.</noscript>
+
+<script>
+"use strict";
+/* =========================================================================
+   InflowMap — architecture
+   layers:  DB (IndexedDB) → Store (canonical state + subscribe) → Commands
+            (validated mutations) → UI (render functions) ⇄ Screens
+   AI:      Agent → AIService → ProviderAdapter(Gemini) → Tools(validated)
+   ========================================================================= */
+const IM = { version:"1.0.0", schemaVersion:1 };
+
+/* ---------- utils ---------- */
+const uid = (p="id") => p+"_"+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const $ = (s,r=document) => r.querySelector(s);
+const $$ = (s,r=document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const clamp = (n,a,b) => Math.max(a,Math.min(b,n));
+const pct = (n,d) => d > 0 ? Math.round(n/d*100) : 0;
+
+function isoDate(d){ const x=new Date(d); return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
+function parseISO(s){ const [y,m,d]=String(s).split("-").map(Number); return new Date(y,(m||1)-1,d||1); }
+function addDays(s,n){ const d=parseISO(s); d.setDate(d.getDate()+n); return isoDate(d); }
+function daysBetween(a,b){ return Math.round((parseISO(b)-parseISO(a))/86400000); }
+function todayISO(){ return isoDate(new Date()); }
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmtDate(s){ const d=parseISO(s); return d.getDate()+" "+MONTHS[d.getMonth()]+(d.getFullYear()!==new Date().getFullYear()?" "+d.getFullYear():""); }
+function fmtDateLong(s){ const d=parseISO(s); return d.getDate()+" "+MONTHS[d.getMonth()]+" "+d.getFullYear(); }
+function fmtTime(ts){ const d=new Date(ts); let h=d.getHours(), m=String(d.getMinutes()).padStart(2,"0"); const ap=h>=12?"PM":"AM"; h=h%12||12; return h+":"+m+" "+ap; }
+function fmtDur(mins){ if(mins<60) return mins+" min"; const h=Math.floor(mins/60), m=mins%60; return m? h+"h "+m+"m" : h+"h"; }
+function debounce(fn,ms=250){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
+function greeting(){ const h=new Date().getHours(); return h<12?"Good morning":h<17?"Good afternoon":h<21?"Good evening":"Good night"; }
+
+async function copyText(t){
+  try{ await navigator.clipboard.writeText(t); return true; }
+  catch(e){ const ta=document.createElement("textarea"); ta.value=t; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");}catch(_){} ta.remove(); return true; }
+}
+
+/* ---------- icons (inline svg, consistent stroke system) ---------- */
+const IC = {
+  home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>',
+  routine:'<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="2" cy="6" r=".6"/><circle cx="2" cy="12" r=".6"/><circle cx="2" cy="18" r=".6"/>',
+  sparkle:'<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M6.3 6.3l2.8 2.8M14.9 14.9l2.8 2.8M17.7 6.3l-2.8 2.8M9.1 14.9l-2.8 2.8"/>',
+  chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  more:'<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  play:'<path d="M6 4l14 8-14 8z"/>',
+  pause:'<path d="M7 4v16M17 4v16"/>',
+  timer:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>',
+  note:'<path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5M8 13h8M8 17h5"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+  settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.9 1.17V21a2 2 0 1 1-4 0v-.1a1.65 1.65 0 0 0-2.9-1.17l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3 15H3a2 2 0 1 1 0-4h.1a1.65 1.65 0 0 0 1.17-2.9l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6V4a2 2 0 1 1 4 0v.1a1.65 1.65 0 0 0 2.9 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 21 11h.1a2 2 0 1 1 0 4z"/>',
+  back:'<path d="M15 18l-6-6 6-6"/>',
+  x:'<path d="M18 6 6 18M6 6l12 12"/>',
+  trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
+  edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  copy:'<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  move:'<path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/>',
+  calendar:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  chevron:'<path d="M6 9l6 6 6-6"/>',
+  chevronR:'<path d="M9 6l6 6-6 6"/>',
+  flame:'<path d="M12 2c1 4-3 5-3 9a3 3 0 0 0 6 0c0-1-.5-2-.5-2 2 1 3.5 3 3.5 5a6 6 0 1 1-12 0c0-5 6-7 6-12z"/>',
+  target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/>',
+  download:'<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
+  upload:'<path d="M12 21V9M7 14l5-5 5 5M4 3h16"/>',
+  book:'<path d="M4 4h7a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H4z"/><path d="M20 4h-5a3 3 0 0 0-3 3v13a3 3 0 0 1 3-3h5z"/>',
+  template:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>',
+  refresh:'<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
+  undo:'<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+  filter:'<path d="M22 3H2l8 9.5V19l4 2v-8.5z"/>',
+  grip:'<circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/>',
+  wifiOff:'<path d="M1 1l22 22"/><path d="M16.7 12.5A6 6 0 0 0 12 10c-.6 0-1.2.1-1.7.3"/><path d="M5 12.5a10 10 0 0 1 3-2"/><path d="M1.4 8.4A16 16 0 0 1 12 4a16 16 0 0 1 10.6 4.4"/><path d="M8.5 16a5 5 0 0 1 4.2-.6"/><path d="M12 20h.01"/>',
+  cloud:'<path d="M17.5 19a4.5 4.5 0 0 0 .5-9 6 6 0 0 0-11.6 1.6A4 4 0 0 0 6.5 19z"/>',
+  key:'<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2M18 5l2 2M15 8l2 2"/>'
+};
+function icon(name,cls="",size=20){
+  return `<svg class="${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[name]||""}</svg>`;
+}
+</script>
+<script id="db-layer" type="application/javascript">
+/* ============================ DB LAYER (IndexedDB) ============================ */
+const DB = (() => {
+  const NAME="inflowmap", VER=1;
+  let db=null;
+  const STORES = {
+    settings:{ keyPath:"id" },
+    routines:{ keyPath:"id", indexes:[["isPrimary","isPrimary"],["status","status"]] },
+    days:{ keyPath:"id", indexes:[["routineId","routineId"],["routine_day",["routineId","dayNumber"],{unique:true}]] },
+    subjects:{ keyPath:"id", indexes:[["name","name"]] },
+    tasks:{ keyPath:"id", indexes:[["dayId","dayId"],["subjectId","subjectId"]] },
+    notes:{ keyPath:"id", indexes:[["updatedAt","updatedAt"]] },
+    sessions:{ keyPath:"id", indexes:[["taskId","taskId"],["startedAt","startedAt"]] },
+    templates:{ keyPath:"id" },
+    aichanges:{ keyPath:"id", indexes:[["createdAt","createdAt"]] }
+  };
+
+  function open(){
+    return new Promise((res,rej)=>{
+      const rq = indexedDB.open(NAME, VER);
+      rq.onupgradeneeded = e => {
+        const d = e.target.result;
+        for(const [name,def] of Object.entries(STORES)){
+          let st;
+          if(!d.objectStoreNames.contains(name)){
+            st = d.createObjectStore(name,{ keyPath:def.keyPath });
+          } else st = e.target.transaction.objectStore(name);
+          (def.indexes||[]).forEach(ix=>{
+            const [iname,keyPath,opts] = ix;
+            if(!st.indexNames.contains(iname)) st.createIndex(iname,keyPath,opts||{});
+          });
+        }
+      };
+      rq.onsuccess = () => { db=rq.result; res(db); };
+      rq.onerror = () => rej(rq.error);
+    });
+  }
+  const tx = (store,mode="readonly") => db.transaction(store,mode).objectStore(store);
+  const wrap = rq => new Promise((res,rej)=>{ rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); });
+  const req = (store,mode,fn) => { const r = fn(tx(store,mode)); return wrap(r); };
+
+  return {
+    open,
+    async getAll(store,query,count){ return wrap(tx(store).getAll(query,count)); },
+    async get(store,key){ return wrap(tx(store).get(key)); },
+    async put(store,val){ return wrap(tx(store,"readwrite").put(val)); },
+    async del(store,key){ return wrap(tx(store,"readwrite").delete(key)); },
+    async bulkPut(store,vals){ const s=tx(store,"readwrite"); vals.forEach(v=>s.put(v)); return wrap(s.transaction.objectStore(store).count()===undefined?{ok:1}:tx(store).count()); },
+    async clear(store){ return wrap(tx(store,"readwrite").clear()); },
+    async getAllByIndex(store,index,query){ return wrap(tx(store).index(index).getAll(query)); },
+    async count(store){ return wrap(tx(store).count()); },
+    /* atomic multi-store transaction: fn receives {get,put,del} helpers */
+    async txn(storeNames, mode, fn){
+      return new Promise((res,rej)=>{
+        const t = db.transaction(storeNames, mode);
+        const api = {
+          get:(s,k)=>wrap(t.objectStore(s).get(k)),
+          put:(s,v)=>wrap(t.objectStore(s).put(v)),
+          del:(s,k)=>wrap(t.objectStore(s).delete(k)),
+          clear:(s)=>wrap(t.objectStore(s).clear()),
+          getAll:(s)=>wrap(t.objectStore(s).getAll())
+        };
+        Promise.resolve(fn(api)).then(()=>{ t.oncomplete=()=>res(true); t.onerror=()=>rej(t.error); t.onabort=()=>rej(t.error); })
+          .catch(err=>{ try{t.abort();}catch(_){ } rej(err); });
+      });
+    }
+  };
+})();
+
+/* ============================ STORE (canonical state) ============================ */
+const Store = (() => {
+  let state = {
+    ready:false,
+    settings:{ id:"app", theme:"system", primaryRoutineId:null, ai:{ provider:"groq", apiKey:"", model:"openai/gpt-oss-120b" } },
+    routines:[], days:[], subjects:[], tasks:[], notes:[], sessions:[], templates:[], aichanges:[],
+    ui:{ screen:"home", routineView:"all", focusDayId:null, editingTaskId:null, aiContext:null, searchQuery:"" }
+  };
+  const subs = new Set();
+  const emit = () => subs.forEach(f=>{ try{f(state);}catch(e){ console.error(e); } });
+  return {
+    get s(){ return state; },
+    subscribe(fn){ subs.add(fn); return ()=>subs.delete(fn); },
+    emit,
+    async load(){
+      const [settings,routines,days,subjects,tasks,notes,sessions,templates,aichanges] = await Promise.all([
+        DB.get("settings","app"), DB.getAll("routines"), DB.getAll("days"), DB.getAll("subjects"),
+        DB.getAll("tasks"), DB.getAll("notes"), DB.getAll("sessions"), DB.getAll("templates"), DB.getAll("aichanges")
+      ]);
+      state.settings = Object.assign(state.settings, settings||{});
+      if(!state.settings.ai) state.settings.ai = { provider:"groq", apiKey:"", model:"openai/gpt-oss-120b" };
+      /* migrate legacy free-text model ids to the current default for the chosen provider */
+      const LEGACY = ["gemini-2.5-flash","gemini-2.5-pro","gemini-2.5-flash-lite","gemini-1.5-flash","gemini-1.5-pro"];
+      if(!state.settings.ai.model || LEGACY.includes(state.settings.ai.model)){
+        state.settings.ai.model = (AIProviders[state.settings.ai.provider]||AIProviders.groq).defaultModel;
+        await DB.put("settings", state.settings);
+      }
+      /* one-time: default provider moved to Groq; if no key was ever saved, follow the new default */
+      if(!state.settings.ai.apiKey && !state.settings.ai.__provChosen){
+        state.settings.ai.provider = "groq";
+        state.settings.ai.model = AIProviders.groq.defaultModel;
+        state.settings.ai.__provChosen = true;
+        await DB.put("settings", state.settings);
+      }
+      state.routines=routines||[]; state.days=days||[]; state.subjects=subjects||[];
+      state.tasks=tasks||[]; state.notes=notes||[]; state.sessions=sessions||[];
+      state.templates=templates||[]; state.aichanges=(aichanges||[]).sort((a,b)=>b.createdAt-a.createdAt);
+      state.ready = true;
+      if(state.settings.theme) applyTheme(state.settings.theme);
+      emit();
+    },
+    saveSettings: async (patch) => { state.settings=Object.assign({},state.settings,patch);
+      if(state.settings.ai) state.settings.ai.__provChosen = true;
+      await DB.put("settings",state.settings); emit(); },
+    /* -- selectors -- */
+    primaryRoutine(){ return state.routines.find(r=>r.isPrimary) || state.routines[0] || null; },
+    routine(id){ return state.routines.find(r=>r.id===id) || null; },
+    daysOf(routineId){ return state.days.filter(d=>d.routineId===routineId).sort((a,b)=>a.dayNumber-b.dayNumber); },
+    day(id){ return state.days.find(d=>d.id===id) || null; },
+    dayOfNumber(routineId,n){ return state.days.find(d=>d.routineId===routineId && d.dayNumber===n) || null; },
+    tasksOf(dayId){ return state.tasks.filter(t=>t.dayId===dayId).sort((a,b)=>(a.sortOrder-b.sortOrder)||(a.createdAt-b.createdAt)); },
+    dayIndex(routine,d){ const i = daysBetween(r.startDate, d.date); return i; },
+    subject(id){ return state.subjects.find(s=>s.id===id) || null; },
+    subjectName(id){ const s=state.subjects.find(x=>x.id===id); return s? s.name : "—"; },
+    /* stats */
+    statsFor(routineId){
+      const days = state.days.filter(d=>d.routineId===routineId);
+      const ids = new Set(days.map(d=>d.id));
+      const tasks = state.tasks.filter(t=>ids.has(t.dayId));
+      const done = tasks.filter(t=>t.completed).length;
+      const doneDays = days.filter(d=>{ const dt=state.tasks.filter(t=>t.dayId===d.id); return dt.length>0 && dt.every(t=>t.completed); }).length;
+      return { totalDays:days.length, doneDays, totalTasks:tasks.length, doneTasks:done, pct:pct(done,tasks.length) };
+    },
+    subjectStats(routineId){
+      const days = state.days.filter(d=>d.routineId===routineId);
+      const ids = new Set(days.map(d=>d.id));
+      const map = new Map();
+      state.tasks.filter(t=>ids.has(t.dayId)).forEach(t=>{
+        const k = t.subjectId||"none";
+        if(!map.has(k)) map.set(k,{ subjectId:k, name:(state.subjects.find(s=>s.id===k)||{}).name || "—", total:0, done:0, minutes:0 });
+        const e = map.get(k); e.total++; if(t.completed) e.done++; e.minutes += t.estimatedMinutes||0;
+      });
+      return Array.from(map.values()).map(e=>({ ...e, pct:pct(e.done,e.total) })).sort((a,b)=>b.total-a.total);
+    },
+    sessionsOfTask(taskId){ return state.sessions.filter(s=>s.taskId===taskId); },
+    activeSession(){ return state.sessions.find(s=>!s.endedAt && s.duration>0) || state.sessions.find(s=>!s.endedAt) || null; },
+    streak(routineId){
+      const days = state.days.filter(d=>d.routineId===routineId).sort((a,b)=>a.dayNumber-b.dayNumber);
+      const today = todayISO();
+      let streak=0, cursor=today;
+      const byDate = new Map(days.map(d=>[d.date,d]));
+      // count consecutive days ending today (or yesterday if today has no activity yet)
+      for(let i=0;i<days.length+1;i++){
+        const d = byDate.get(cursor);
+        if(d){ const ts=state.tasks.filter(t=>t.dayId===d.id); if(ts.length && ts.every(t=>t.completed)){ streak++; cursor=addDays(cursor,-1); continue; } }
+        if(i===0 && cursor===today){ cursor=addDays(cursor,-1); continue; } // allow today not done yet
+        break;
+      }
+      return streak;
+    },
+    totalStudyMinutes(fn){
+      const now = new Date(); const out={today:0,week:0,all:0};
+      state.sessions.forEach(s=>{ if(!s.duration) return; out.all+=s.duration;
+        const d=new Date(s.startedAt);
+        if(isoDate(d)===todayISO()) out.today+=s.duration;
+        if((now-d) < 7*86400000) out.week+=s.duration; });
+      return out;
+    }
+  };
+})();
+</script>
+
+<script id="commands" type="application/javascript">
+/* ============================ COMMANDS (validated mutations) ============================ */
+const UndoRegistry = new Map();
+
+const Cmd = (() => {
+  const S = () => Store.s;
+
+  function subjectIdByName(name){
+    const clean = String(name||"").trim();
+    if(!clean) return null;
+    let s = S().subjects.find(x=>x.name.toLowerCase()===clean.toLowerCase());
+    if(s) return s.id;
+    s = { id:uid("sub"), name:clean };
+    S().subjects.push(s);
+    DB.put("subjects",s);
+    return s.id;
+  }
+
+  async function createRoutine({ name, startDate, duration, days, makePrimary=true }){
+    name = String(name||"Untitled Routine").trim().slice(0,80) || "Untitled Routine";
+    duration = clamp(parseInt(duration,10)||30, 1, 1000);
+    startDate = startDate || todayISO();
+    const rid = uid("rt");
+    const routine = { id:rid, name, startDate, duration, status:"active", isPrimary:false, createdAt:Date.now(), updatedAt:Date.now() };
+    const newDays=[], newTasks=[];
+    for(let i=0;i<duration;i++){
+      newDays.push({ id:uid("day"), routineId:rid, dayNumber:i+1, date:addDays(startDate,i), status:"pending" });
+    }
+    (days||[]).forEach((d,i)=>{
+      if(!d || !newDays[i]) return;
+      (d.subjects||[]).forEach((sub,si)=>{
+        const sid = subjectIdByName(sub.name);
+        (sub.topics||[]).forEach((topic,ti)=>{
+          newTasks.push({ id:uid("task"), dayId:newDays[i].id, subjectId:sid, title:String(topic).trim()||"Untitled",
+            completed:false, completedAt:null, estimatedMinutes:0, note:"", createdAt:Date.now(), updatedAt:Date.now(), sortOrder:si*1000+ti });
+        });
+      });
+    });
+    await DB.txn(["routines","days","tasks","subjects"], "readwrite", async t=>{
+      if(makePrimary){ for(const r of S().routines){ if(r.isPrimary){ r.isPrimary=false; r.updatedAt=Date.now(); await t.put("routines",r); } } routine.isPrimary=true; }
+      await t.put("routines",routine);
+      for(const d of newDays) await t.put("days",d);
+      for(const x of newTasks) await t.put("tasks",x);
+    });
+    S().routines.push(routine); S().days.push(...newDays); S().tasks.push(...newTasks);
+    if(routine.isPrimary && S().settings.primaryRoutineId!==rid) await Store.saveSettings({ primaryRoutineId:rid });
+    Store.emit();
+    return routine;
+  }
+
+  async function updateRoutine(id, patch){
+    const r = Store.routine(id); if(!r) throw new Error("Routine not found");
+    Object.assign(r, patch, { updatedAt:Date.now() });
+    if(patch.startDate!==undefined || patch.duration!==undefined){
+      const existing = Store.daysOf(id);
+      const maxExisting = existing.length ? Math.max(...existing.map(d=>d.dayNumber)) : 0;
+      const target = clamp(parseInt(r.duration,10)||maxExisting||1, 1, 1000);
+      r.duration = target;
+      const byNum = new Map(existing.map(d=>[d.dayNumber,d]));
+      await DB.txn(["routines","days"], "readwrite", async t=>{
+        await t.put("routines",r);
+        for(let n=1;n<=target;n++){
+          let d = byNum.get(n);
+          if(d){ const nd = addDays(r.startDate,n-1); if(d.date!==nd){ d.date=nd; await t.put("days",d); } }
+          else { const nd={ id:uid("day"), routineId:id, dayNumber:n, date:addDays(r.startDate,n-1), status:"pending" };
+                 await t.put("days",nd); S().days.push(nd); }
+        }
+        for(let n=target+1;n<=maxExisting;n++){ const d=byNum.get(n); if(d){ await t.del("days",d.id);
+          S().days = S().days.filter(x=>x.id!==d.id); } }
+      });
+    } else { await DB.put("routines",r); }
+    Store.emit();
+    return r;
+  }
+
+  async function deleteRoutine(id){
+    const days = Store.daysOf(id); const ids = new Set(days.map(d=>d.id));
+    await DB.txn(["routines","days","tasks"], "readwrite", async t=>{
+      await t.del("routines",id);
+      for(const d of days) await t.del("days",d.id);
+      for(const task of S().tasks.filter(x=>ids.has(x.dayId))) await t.del("tasks",task.id);
+    });
+    S().routines = S().routines.filter(r=>r.id!==id);
+    S().days = S().days.filter(d=>d.routineId!==id);
+    S().tasks = S().tasks.filter(x=>!ids.has(x.dayId));
+    if(S().settings.primaryRoutineId===id){ const next=S().routines[0]||null; await setPrimary(next?next.id:null); }
+    Store.emit();
+  }
+
+  async function setPrimary(id){
+    S().routines.forEach(r=>{ r.isPrimary = r.id===id; r.updatedAt=Date.now(); });
+    await DB.txn(["routines"],"readwrite", async t=>{ for(const r of S().routines) await t.put("routines",r); });
+    await Store.saveSettings({ primaryRoutineId:id });
+  }
+
+  async function createTask({ dayId, subjectId, subjectName, title, estimatedMinutes=0, note="" }){
+    const day = Store.day(dayId); if(!day) throw new Error("Day not found");
+    const sid = subjectId || subjectIdByName(subjectName);
+    title = String(title||"").trim(); if(!title) throw new Error("Task title required");
+    const list = Store.tasksOf(dayId);
+    const task = { id:uid("task"), dayId, subjectId:sid, title:title.slice(0,300), completed:false, completedAt:null,
+      estimatedMinutes:parseInt(estimatedMinutes,10)||0, note:String(note||"").slice(0,1000), createdAt:Date.now(), updatedAt:Date.now(),
+      sortOrder: list.length? list[list.length-1].sortOrder+1 : 0 };
+    await DB.put("tasks",task); S().tasks.push(task); await refreshDayStatus(dayId); Store.emit();
+    return task;
+  }
+
+  async function updateTask(id, patch){
+    const t = S().tasks.find(x=>x.id===id); if(!t) throw new Error("Task not found");
+    ["title","estimatedMinutes","note","sortOrder","dayId"].forEach(k=>{ if(patch[k]!==undefined) t[k]=patch[k]; });
+    if(patch.subjectId!==undefined) t.subjectId = patch.subjectId;
+    if(patch.subjectName!==undefined) t.subjectId = subjectIdByName(patch.subjectName);
+    t.updatedAt = Date.now();
+    await DB.put("tasks",t); await refreshDayStatus(t.dayId); Store.emit(); return t;
+  }
+
+  async function setTaskComplete(id, done, opts={}){
+    const t = S().tasks.find(x=>x.id===id); if(!t) return null;
+    const prevCompleted = t.completed, prevAt = t.completedAt;
+    t.completed = !!done; t.completedAt = done ? Date.now() : null; t.updatedAt=Date.now();
+    await DB.put("tasks",t); await refreshDayStatus(t.dayId);
+    if(!opts.silent) await pushAIChange({ description:(done?"Completed task: ":"Reopened task: ")+t.title, scope:"task",
+      undo:async()=>{ const x=S().tasks.find(z=>z.id===id); if(x){ x.completed=prevCompleted; x.completedAt=prevAt; x.updatedAt=Date.now(); await DB.put("tasks",x); await refreshDayStatus(x.dayId); Store.emit(); } } });
+    Store.emit(); return t;
+  }
+
+  async function deleteTask(id){
+    const t = S().tasks.find(x=>x.id===id); if(!t) return;
+    const dayId = t.dayId;
+    await DB.del("tasks",id); S().tasks = S().tasks.filter(x=>x.id!==id);
+    await refreshDayStatus(dayId); Store.emit();
+  }
+
+  async function duplicateTask(id){
+    const t = S().tasks.find(x=>x.id===id); if(!t) return null;
+    const list = Store.tasksOf(t.dayId);
+    const copy = { ...t, id:uid("task"), completed:false, completedAt:null,
+      createdAt:Date.now(), updatedAt:Date.now(), sortOrder:(list[list.length-1]?.sortOrder||0)+1 };
+    await DB.put("tasks",copy); S().tasks.push(copy); await refreshDayStatus(t.dayId); Store.emit(); return copy;
+  }
+
+  async function moveTask(id, targetDayId, opts={ copy:false }){
+    const t = S().tasks.find(x=>x.id===id); if(!t) return null;
+    const from = t.dayId;
+    const list = Store.tasksOf(targetDayId);
+    if(opts.copy){
+      const copy = { ...t, id:uid("task"), dayId:targetDayId, completed:false, completedAt:null,
+        createdAt:Date.now(), updatedAt:Date.now(), sortOrder:(list[list.length-1]?.sortOrder||0)+1 };
+      await DB.put("tasks",copy); S().tasks.push(copy); await refreshDayStatus(targetDayId);
+    } else {
+      t.dayId = targetDayId; t.updatedAt=Date.now();
+      await DB.put("tasks",t); await refreshDayStatus(targetDayId); if(from!==targetDayId) await refreshDayStatus(from);
+    }
+    Store.emit(); return t;
+  }
+
+  async function duplicateDay(dayId, targetDayId){
+    const tasks = Store.tasksOf(dayId);
+    for(const t of tasks) await moveTask(t.id, targetDayId, { copy:true });
+  }
+
+  async function refreshDayStatus(dayId){
+    const d = Store.day(dayId); if(!d) return;
+    const ts = S().tasks.filter(t=>t.dayId===dayId);
+    const status = (ts.length>0 && ts.every(t=>t.completed)) ? "complete" : (ts.length>0? "active":"pending");
+    if(d.status!==status){ d.status=status; await DB.put("days",d); }
+  }
+
+  async function bulkCreateTasks(dayId, subjectName, titles){
+    for(const title of titles) await createTask({ dayId, subjectName, title });
+  }
+
+  async function createNote({ title="", content="" }={}){
+    const note = { id:uid("note"), title:String(title).slice(0,120), content:String(content), tags:[], createdAt:Date.now(), updatedAt:Date.now() };
+    await DB.put("notes",note); S().notes.push(note); Store.emit(); return note;
+  }
+  async function updateNote(id,patch){ const n=S().notes.find(x=>x.id===id); if(!n) return; Object.assign(n,patch,{updatedAt:Date.now()}); await DB.put("notes",n); Store.emit(); return n; }
+  async function deleteNote(id){ await DB.del("notes",id); S().notes=S().notes.filter(n=>n.id!==id); Store.emit(); }
+
+  async function saveSession(session){ await DB.put("sessions",session); S().sessions.push(session); Store.emit(); return session; }
+
+  async function pushAIChange(rec){
+    const change = { id:uid("chg"), description:rec.description||"Change", scope:rec.scope||"app",
+      previousState:rec.previousState||null, newState:rec.newState||null, createdAt:Date.now(), revertedAt:null };
+    UndoRegistry.set(change.id, rec.undo||null);
+    await DB.put("aichanges",change); S().aichanges.unshift(change); Store.emit(); return change;
+  }
+
+  function exportPayload(){
+    return { app:"InflowMap", version:IM.version, schemaVersion:IM.schemaVersion, exportedAt:new Date().toISOString(),
+      settings:{ theme:S().settings.theme, primaryRoutineId:S().settings.primaryRoutineId, ai:{ provider:S().settings.ai.provider, model:S().settings.ai.model } },
+      routines:S().routines, days:S().days, subjects:S().subjects, tasks:S().tasks, notes:S().notes,
+      sessions:S().sessions, templates:S().templates };
+  }
+  function validatePayload(p){
+    const problems=[];
+    if(!p || typeof p!=="object") return { ok:false, problems:["File is not valid JSON data."] };
+    if(p.app!=="InflowMap") problems.push("This file was not created by InflowMap.");
+    if(p.schemaVersion && p.schemaVersion>IM.schemaVersion) problems.push("This backup was made with a newer version of InflowMap.");
+    ["routines","days","subjects","tasks"].forEach(k=>{ if(p[k] && !Array.isArray(p[k])) problems.push('Field "'+k+'" is malformed.'); });
+    return { ok:problems.length===0, problems };
+  }
+  function summarize(p){
+    return { routines:(p.routines||[]).length, days:(p.days||[]).length, tasks:(p.tasks||[]).length,
+      notes:(p.notes||[]).length, sessions:(p.sessions||[]).length, templates:(p.templates||[]).length };
+  }
+  async function importPayload(p, mode="merge"){
+    const valid = validatePayload(p); if(!valid.ok) throw new Error(valid.problems.join(" "));
+    if(mode==="replace"){
+      await DB.txn(["routines","days","subjects","tasks","notes","sessions","templates"],"readwrite", async t=>{
+        for(const s of ["routines","days","subjects","tasks","notes","sessions","templates"]) await t.clear(s);
+      });
+      S().routines=[]; S().days=[]; S().subjects=[]; S().tasks=[]; S().notes=[]; S().sessions=[]; S().templates=[];
+    }
+    const added={routines:0,tasks:0,notes:0,sessions:0};
+    const hasRoutine=id=>!!Store.routine(id), hasDay=id=>!!Store.day(id),
+      hasSub=id=>S().subjects.some(x=>x.id===id), hasTask=id=>S().tasks.some(x=>x.id===id),
+      hasNote=id=>S().notes.some(x=>x.id===id), hasSes=id=>S().sessions.some(x=>x.id===id),
+      hasTpl=id=>S().templates.some(x=>x.id===id);
+    const rmap=new Map(), dmap=new Map(), smap=new Map(), tmap=new Map();
+    for(const s of (p.subjects||[])){ const it={...s}; if(hasSub(it.id)) it.id=uid("sub"); smap.set(s.id,it.id); await DB.put("subjects",it); if(!S().subjects.some(x=>x.id===it.id)) S().subjects.push(it); }
+    for(const r of (p.routines||[])){ const it={...r,isPrimary:false}; if(hasRoutine(it.id)) it.id=uid("rt"); rmap.set(r.id,it.id); await DB.put("routines",it); S().routines.push(it); added.routines++; }
+    for(const d of (p.days||[])){ const it={...d}; if(hasDay(it.id)) it.id=uid("day"); if(rmap.has(it.routineId)) it.routineId=rmap.get(it.routineId); dmap.set(d.id,it.id); await DB.put("days",it); S().days.push(it); }
+    for(const t of (p.tasks||[])){ const it={...t}; if(hasTask(it.id)) it.id=uid("task"); if(dmap.has(it.dayId)) it.dayId=dmap.get(it.dayId); if(smap.has(it.subjectId)) it.subjectId=smap.get(it.subjectId); await DB.put("tasks",it); S().tasks.push(it); added.tasks++; }
+    for(const n of (p.notes||[])){ const it={...n}; if(hasNote(it.id)) it.id=uid("note"); await DB.put("notes",it); S().notes.push(it); added.notes++; }
+    for(const s of (p.sessions||[])){ const it={...s}; if(hasSes(it.id)) it.id=uid("ses"); if(tmap.has(it.taskId)) it.taskId=tmap.get(it.taskId); await DB.put("sessions",it); S().sessions.push(it); added.sessions++; }
+    for(const tp of (p.templates||[])){ const it={...tp}; if(hasTpl(it.id)) it.id=uid("tpl"); await DB.put("templates",it); S().templates.push(it); }
+    Store.emit(); return added;
+  }
+
+  async function clearAll(){
+    await DB.txn(["routines","days","subjects","tasks","notes","sessions","templates","aichanges"],"readwrite", async t=>{
+      for(const s of ["routines","days","subjects","tasks","notes","sessions","templates","aichanges"]) await t.clear(s);
+    });
+    S().routines=[]; S().days=[]; S().subjects=[]; S().tasks=[]; S().notes=[]; S().sessions=[]; S().templates=[]; S().aichanges=[];
+    await Store.saveSettings({ primaryRoutineId:null }); Store.emit();
+  }
+
+  async function saveAsTemplate(routineId, name){
+    const r = Store.routine(routineId); if(!r) throw new Error("Routine not found");
+    const days = Store.daysOf(routineId).map(d=>({ dayNumber:d.dayNumber,
+      tasks: Store.tasksOf(d.id).map(t=>({ subject:Store.subjectName(t.subjectId), title:t.title, estimatedMinutes:t.estimatedMinutes||0 })) }));
+    const tpl = { id:uid("tpl"), name:(name||r.name).slice(0,80), data:{ duration:r.duration, days }, createdAt:Date.now() };
+    await DB.put("templates",tpl); S().templates.push(tpl); Store.emit(); return tpl;
+  }
+  async function createFromTemplate(templateId, { name, startDate }){
+    const tpl = S().templates.find(t=>t.id===templateId); if(!tpl) throw new Error("Template not found");
+    const days = [];
+    (tpl.data.days||[]).forEach(d=>{
+      const groups = new Map();
+      (d.tasks||[]).forEach(t=>{ if(!groups.has(t.subject)) groups.set(t.subject,[]); groups.get(t.subject).push(t.title); });
+      days[d.dayNumber-1] = { subjects:Array.from(groups.entries()).map(([n,topics])=>({ name:n, topics })) };
+    });
+    return createRoutine({ name:name||tpl.name+" (copy)", startDate:startDate||todayISO(), duration:tpl.data.duration, days });
+  }
+  async function deleteTemplate(id){ await DB.del("templates",id); S().templates=S().templates.filter(t=>t.id!==id); Store.emit(); }
+
+  return { subjectIdByName, createRoutine, updateRoutine, deleteRoutine, setPrimary, createTask, updateTask,
+    setTaskComplete, deleteTask, duplicateTask, moveTask, duplicateDay, refreshDayStatus, bulkCreateTasks,
+    createNote, updateNote, deleteNote, saveSession, pushAIChange, exportPayload, validatePayload, summarize,
+    importPayload, clearAll, saveAsTemplate, createFromTemplate, deleteTemplate };
+})();
+
+/* ============================ BULK TEXT PARSER ============================ */
+function parseBulkPlan(text){
+  const lines = String(text||"").split(/\r?\n/);
+  const days = []; let cur = null;
+  const bn = "০১২৩৪৫৬৭৮৯";
+  const toNum = s => parseInt(String(s).replace(/[০-৯]/g,c=>bn.indexOf(c)),10);
+  const dayRe = /^\s*(?:day|din|দিন|d)\s*([0-9০-৯]+)\s*[:\-]?\s*$/i;
+  for(const raw of lines){
+    const line = raw.trim(); if(!line) continue;
+    const dm = line.match(dayRe);
+    if(dm){ const n=toNum(dm[1]); while(days.length<n) days.push({subjects:[]}); cur=days[n-1]; continue; }
+    const m = line.match(/^(.+?)\s*[:\-–]\s*(.+)$/);
+    if(m){
+      if(!cur){ cur={subjects:[]}; days.push(cur); }
+      const subject=m[1].trim();
+      const topics=m[2].split(/[,،;|]/).map(x=>x.trim()).filter(Boolean);
+      cur.subjects.push({ name:subject, topics: topics.length?topics:[m[2].trim()] });
+      continue;
+    }
+    if(cur && cur.subjects.length){ cur.subjects[cur.subjects.length-1].topics.push(line); }
+    else { if(!cur){ cur={subjects:[]}; days.push(cur); } cur.subjects.push({ name:"General", topics:[line] }); }
+  }
+  // A bare first line often is a subject heading ("বাংলা") followed by its topics.
+  days.forEach(d=>{
+    if(d.subjects.length===1 && d.subjects[0].name==="General" && d.subjects[0].topics.length>=2 && d.subjects[0].topics[0].length<=24){
+      const head = d.subjects[0].topics[0];
+      if(!/[:\-–]/.test(head)){ d.subjects[0].name = head.trim(); d.subjects[0].topics.shift(); }
+    }
+  });
+  return days;
+}
+</script>
+
+<script id="ui-shell" type="application/javascript">
+/* ============================ UI: shell, theme, toast, sheets ============================ */
+function applyTheme(mode){
+  const m = mode==="system" ? (matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light") : mode;
+  document.documentElement.setAttribute("data-theme", m==="dark"?"dark":"light");
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute("content", m==="dark" ? "#0d0f14" : "#f6f7f9");
+}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ()=>{ applyTheme(Store.s.settings.theme); });
+
+function toast(msg, ms=2200){
+  const el = document.createElement("div"); el.className="toast"; el.textContent=msg;
+  $("#toasts").appendChild(el);
+  setTimeout(()=>{ el.style.transition="opacity .2s"; el.style.opacity="0"; setTimeout(()=>el.remove(),200); }, ms);
+}
+
+const Layers = {
+  stack:[],
+  open(html, opts={}){
+    const scrim = document.createElement("div"); scrim.className="scrim";
+    const layer = document.createElement("div"); layer.className="layer";
+    layer.innerHTML = html;
+    scrim.onclick = ()=>{ if(opts.dismissable!==false) Layers.close(); };
+    $("#layers").appendChild(scrim); $("#layers").appendChild(layer);
+    this.stack.push({ scrim, layer, onClose:opts.onClose });
+    if(opts.initialFocus) setTimeout(()=>{ const f=$("#layers "+opts.initialFocus); f&&f.focus(); },60);
+    return layer;
+  },
+  close(){
+    const item = this.stack.pop(); if(!item) return;
+    item.scrim.remove(); item.layer.remove();
+    if(item.onClose) try{item.onClose();}catch(e){}
+  },
+  closeAll(){ while(this.stack.length) this.close(); }
+};
+document.addEventListener("keydown", e=>{ if(e.key==="Escape" && Layers.stack.length) Layers.close(); });
+
+function sheet(title, bodyHtml, opts={}){
+  const html = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+    <div class="sheet-grab" aria-hidden="true"></div>
+    <div class="sheet-head">
+      <h2 style="margin:0;font-size:16px;font-weight:650;flex:1">${esc(title)}</h2>
+      <button class="btn btn-icon" data-close aria-label="Close">${icon("x",undefined,20)}</button>
+    </div>
+    <div class="sheet-body">${bodyHtml}</div>
+  </div>`;
+  const layer = Layers.open(html, opts);
+  layer.querySelector("[data-close]").onclick = ()=>Layers.close();
+  return layer;
+}
+
+function confirmDialog({ title, message, confirmText="Confirm", danger=false, onConfirm }){
+  const layer = sheet(title, `
+    <p class="muted" style="margin:0 0 20px">${esc(message)}</p>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost" style="flex:1" data-cancel>Cancel</button>
+      <button class="btn ${danger?"btn-danger":"btn-primary"}" style="flex:1" data-ok>${esc(confirmText)}</button>
+    </div>`);
+  layer.querySelector("[data-cancel]").onclick = ()=>Layers.close();
+  layer.querySelector("[data-ok]").onclick = async ()=>{ try{ await onConfirm(); } finally { Layers.close(); } };
+}
+
+/* date input parser: yyyy-mm-dd */
+function dateField(id, value, label){
+  return `<div><label class="label" for="${id}">${esc(label)}</label>
+    <input class="input" type="date" id="${id}" value="${esc(value)}"></div>`;
+}
+</script>
+
+<script id="ui-components" type="application/javascript">
+/* ============================ UI: reusable task components ============================ */
+function taskRowHtml(task, opts={}){
+  const done = task.completed;
+  const est = task.estimatedMinutes ? `<span class="muted2" style="font-size:12px">${fmtDur(task.estimatedMinutes)}</span>` : "";
+  const drag = opts.draggable!==false ? `<span class="grip" data-grip draggable="false" aria-hidden="true">${icon("grip",undefined,16)}</span>` : "";
+  return `<div class="task ${done?"done":""}" data-task="${task.id}" data-day="${task.dayId}" ${opts.draggable!==false?'draggable="true"':""}>
+    ${drag}
+    <button class="check" data-toggle="${task.id}" role="checkbox" aria-checked="${done}" aria-label="${done?"Mark incomplete":"Mark complete"}: ${esc(task.title)}">
+      ${icon("check",undefined,14)}
+    </button>
+    <div style="flex:1;min-width:0">
+      <div class="task-title">${esc(task.title)}</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:1px">${est}${task.note?`<span class="muted2" style="font-size:12px">• ${esc(task.note).slice(0,40)}</span>`:""}</div>
+    </div>
+    <button class="btn btn-icon" data-menu="${task.id}" aria-label="Task actions" style="min-height:36px;width:36px">${icon("more",undefined,18)}</button>
+  </div>`;
+}
+
+function subjectGroups(dayId){
+  const tasks = Store.tasksOf(dayId);
+  const map = new Map();
+  tasks.forEach(t=>{
+    const k = t.subjectId||"none";
+    if(!map.has(k)) map.set(k,{ id:k, name:Store.subjectName(k), tasks:[] });
+    map.get(k).tasks.push(t);
+  });
+  return Array.from(map.values());
+}
+
+function dayTasksBodyHtml(dayId, opts={}){
+  const groups = subjectGroups(dayId);
+  if(!groups.length) return `<div class="muted" style="padding:6px;font-size:14px">No tasks yet.</div>`;
+  return groups.map(g=>{
+    const open = g.tasks.filter(t=>!t.completed), done = g.tasks.filter(t=>t.completed);
+    return `<div class="subject-block">
+      <div class="subject-name">${esc(g.name)} <span class="muted2" style="text-transform:none;font-weight:500">· ${done.length}/${g.tasks.length}</span></div>
+      ${open.map(t=>taskRowHtml(t,opts)).join("")}
+      ${done.length && opts.showCompleted!==false ? `<details class="done-group"><summary class="muted" style="font-size:12.5px;padding:5px 6px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px"><span style="color:var(--text-3)">▸</span>${done.length} completed</summary><div style="opacity:.85">${done.map(t=>taskRowHtml(t,opts)).join("")}</div></details>` : ""}
+    </div>`;
+  }).join("");
+}
+
+/* ============================ UI: HOME ============================ */
+function ScreenHome(){
+  const r = Store.primaryRoutine();
+  if(!r) return emptyHome();
+  const today = todayISO();
+  const dayIdx = clamp(daysBetween(r.startDate,today)+1, 1, r.duration);
+  const day = Store.dayOfNumber(r.id, dayIdx) || Store.daysOf(r.id)[0];
+  const tasks = day ? Store.tasksOf(day.id) : [];
+  const done = tasks.filter(t=>t.completed).length;
+  const p = pct(done, tasks.length);
+  const active = Store.activeSession();
+  const nextTask = tasks.find(t=>!t.completed);
+
+  return `<div class="screen" style="padding:0 16px 24px">
+    <header style="padding:20px 0 14px">
+      <p class="muted" style="margin:0;font-size:13px">${esc(greeting())}</p>
+      <h1 style="margin:2px 0 0;font-size:21px;font-weight:700;letter-spacing:-.01em">${esc(r.name)}</h1>
+      <p class="muted2" style="margin:4px 0 0;font-size:13px">Day ${dayIdx} of ${r.duration} · ${fmtDate(today)}</p>
+    </header>
+
+    <section class="card" style="padding:16px;margin-bottom:14px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:13px;font-weight:600;color:var(--text-2)">Today's progress</span>
+        <span style="font-size:22px;font-weight:700" id="home-pct">${p}%</span>
+      </div>
+      <div class="bar ${p===100&&tasks.length?"success":""}"><i id="home-bar" style="width:${p}%"></i></div>
+      <p class="muted" style="margin:8px 0 0;font-size:13px">${done} / ${tasks.length} tasks completed</p>
+    </section>
+
+    ${active ? continueCardHtml(active) : ""}
+
+    <div class="scroll-x" style="margin-bottom:16px">
+      <button class="chip" data-act="add-task">${icon("plus",undefined,16)} Add Task</button>
+      <button class="chip" data-act="start-focus">${icon("timer",undefined,16)} Start Focus</button>
+      <button class="chip" data-act="ask-ai">${icon("sparkle",undefined,16)} Ask AI</button>
+    </div>
+
+    <section>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <h2 style="margin:0;font-size:15px;font-weight:650">Today's tasks</h2>
+        ${tasks.length?`<button class="btn btn-sm btn-ghost" data-act="view-day">Open day</button>`:""}
+      </div>
+      <div class="card" style="padding:8px 12px" id="home-tasks">
+        ${tasks.length ? dayTasksBodyHtml(day.id) : `<div class="empty" style="padding:32px 12px">
+            <h3>Nothing scheduled today</h3><p>Add a task to start.</p>
+            <button class="btn btn-primary" data-act="add-task">${icon("plus",undefined,18)} Add Task</button></div>`}
+      </div>
+    </section>
+
+    ${nextTask?`<p class="muted2" style="margin:14px 2px 0;font-size:13px">Next up · ${esc(nextTask.title)}</p>`:""}
+  </div>`;
+}
+
+function emptyHome(){
+  return `<div class="screen">
+    <header style="padding:22px 16px 8px"><h1 style="margin:0;font-size:21px;font-weight:700">${esc(greeting())}</h1></header>
+    <div class="empty">
+      ${icon("book","",40).replace('width="20" height="20"','width="40" height="40" style="color:var(--text-3);margin-bottom:14px"')}
+      <h3>Your map is empty.</h3>
+      <p>Build your first study plan.</p>
+      <button class="btn btn-primary" data-act="new-routine">${icon("plus",undefined,18)} Create Routine</button>
+      <div style="margin-top:14px"><button class="btn btn-ghost" data-act="bulk-routine">Paste a plan</button>
+      <button class="btn btn-ghost" data-act="ai-routine" style="margin-left:8px">${icon("sparkle",undefined,16)} Ask AI</button></div>
+    </div>
+  </div>`;
+}
+
+function continueCardHtml(s){
+  const task = s.taskId ? Store.s.tasks.find(t=>t.id===s.taskId) : null;
+  const mins = s.duration || 0;
+  return `<section class="card" style="padding:14px;margin-bottom:14px;border-color:var(--accent)">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:38px;height:38px;border-radius:12px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center">${icon("timer",undefined,20)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--text-2)">Continue studying</div>
+        <div style="font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(task?task.title:"Focus session")}</div>
+        <div class="muted2" style="font-size:12px">Studied ${fmtDur(mins)}</div>
+      </div>
+      <button class="btn btn-primary btn-sm" data-act="continue-session" data-session="${s.id}">Continue</button>
+    </div>
+  </section>`;
+}
+</script>
+
+<script id="ui-routine" type="application/javascript">
+/* ============================ UI: ROUTINE ============================ */
+function dayCardHtml(day, opts={}){
+  const r = Store.routine(day.routineId);
+  const tasks = Store.tasksOf(day.id);
+  const done = tasks.filter(t=>t.completed).length;
+  const p = pct(done,tasks.length);
+  const isToday = day.date===todayISO();
+  const complete = tasks.length>0 && done===tasks.length;
+  const collapsed = opts.collapsed!==undefined ? opts.collapsed : (complete || tasks.length===0);
+  const open = !collapsed;
+
+  return `<article class="day-card ${isToday?"today":""} ${complete?"complete":""}" data-day-card="${day.id}" id="day-${day.id}">
+    <div class="day-head">
+      <button class="btn btn-icon" data-toggle-day="${day.id}" aria-expanded="${open}" style="min-height:32px;width:32px" aria-label="${open?"Collapse":"Expand"} day">
+        ${icon(open?"chevron":"chevronR",undefined,18)}
+      </button>
+      <div style="flex:1;min-width:0" data-goto-day="${day.dayNumber}">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px;font-weight:700;letter-spacing:.03em">DAY ${String(day.dayNumber).padStart(2,"0")}</span>
+          ${isToday?`<span class="tag t-primary">Today</span>`:""}
+          ${complete?`<span class="tag t-success">${icon("check",undefined,11).replace('width="20" height="20"','width="11" height="11"')} Done</span>`:""}
+        </div>
+        <div class="muted2" style="font-size:12px">${fmtDate(day.date)}${tasks.length?` · ${tasks.length} tasks`:""}</div>
+      </div>
+      ${tasks.length?`<div style="text-align:right;min-width:44px">
+        <div style="font-size:13px;font-weight:700;color:${p===100?'var(--success)':'var(--text)'}">${p}%</div>
+        <div class="muted2" style="font-size:11px">${done}/${tasks.length}</div>
+      </div>`:`<span class="muted2" style="font-size:12px">Rest</span>`}
+    </div>
+    ${open?`<div class="day-body">
+      ${dayTasksBodyHtml(day.id,{draggable:!!opts.draggable})}
+      <button class="btn btn-ghost btn-sm" data-add-to-day="${day.id}" style="margin-top:10px">${icon("plus",undefined,15)} Add task</button>
+    </div>`:""}
+  </article>`;
+}
+
+function ScreenRoutine(){
+  const r = Store.primaryRoutine();
+  if(!r) return `<div class="screen">${emptyHome().replace('class="screen"','class="screen"')}</div>`;
+  const s = Store.s;
+  const today = todayISO();
+  const curIdx = clamp(daysBetween(r.startDate,today)+1,1,r.duration);
+  const view = s.ui.routineView;
+  const focusDayId = s.ui.focusDayId;
+  const q = (s.ui.searchQuery||"").toLowerCase();
+
+  let days = Store.daysOf(r.id);
+  if(view==="today"){ const d = Store.dayOfNumber(r.id,curIdx); days = d? [d] : []; }
+  if(q) days = days.filter(d=>Store.tasksOf(d.id).some(t=>t.title.toLowerCase().includes(q)));
+
+  const stats = Store.statsFor(r.id);
+
+  /* windowing: keep long routines fast. Render a slice around the current anchor. */
+  const WINDOW = 40;
+  const allCount = days.length;
+  const anchorNum = s.ui.windowAnchor || curIdx;
+  let startIdx = 0, endIdx = allCount;
+  if(view==="all" && !q && allCount > WINDOW){
+    let ai = days.findIndex(d=>d.dayNumber===anchorNum); if(ai<0) ai = 0;
+    startIdx = clamp(ai-8, 0, Math.max(0, allCount-WINDOW));
+    endIdx = Math.min(allCount, startIdx+WINDOW);
+  }
+  const shownDays = days.slice(startIdx,endIdx);
+
+  return `<div class="screen" style="padding:0 0 24px">
+    <header style="padding:20px 16px 10px;position:sticky;top:0;z-index:10;background:var(--bg)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <div style="flex:1;min-width:0">
+          <h1 style="margin:0;font-size:19px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.name)}</h1>
+          <p class="muted2" style="margin:2px 0 0;font-size:12px">Day ${curIdx} of ${r.duration} · ${stats.pct}% complete</p>
+        </div>
+        <button class="btn btn-icon btn-ghost" data-act="routine-menu" aria-label="Routine options">${icon("more",undefined,20)}</button>
+      </div>
+      <div class="scroll-x">
+        <button class="chip ${view==="all"?"active":""}" data-rview="all">All</button>
+        <button class="chip ${view==="today"?"active":""}" data-rview="today">Today</button>
+        <button class="chip" data-act="goto-day">${icon("target",undefined,15)} Go to day</button>
+        <button class="chip" data-act="goto-date">${icon("calendar",undefined,15)} Go to date</button>
+        <button class="chip" data-act="jump-today">${icon("refresh",undefined,15)} Today</button>
+      </div>
+      <div style="margin-top:8px;position:relative">
+        <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-3)">${icon("search",undefined,16)}</span>
+        <input class="input" id="routine-search" placeholder="Search tasks in routine" value="${esc(s.ui.searchQuery||"")}" style="padding-left:38px">
+      </div>
+    </header>
+    <div style="padding:6px 16px;display:flex;flex-direction:column;gap:10px" id="day-list">
+      ${startIdx>0?`<button class="btn btn-ghost btn-sm" data-window="up">${icon("chevron",undefined,15)} Show earlier days (${startIdx})</button>`:""}
+      ${shownDays.length? shownDays.map(d=>dayCardHtml(d,{collapsed: d.status==="complete" || Store.tasksOf(d.id).length===0})).join("")
+        : `<div class="empty"><h3>No days found</h3><p>Try a different filter.</p></div>`}
+      ${endIdx<allCount?`<button class="btn btn-ghost btn-sm" data-window="down">Show later days (${allCount-endIdx}) ${icon("chevron",undefined,15)}</button>`:""}
+    </div>
+    ${view==="all" && shownDays.length>0 && startIdx===0 && endIdx>=allCount ? `<p class="muted2" style="text-align:center;font-size:12px;padding:18px">End of routine · ${r.duration} days</p>`:""}
+  </div>`;
+}
+</script>
+
+<script id="ui-progress" type="application/javascript">
+/* ============================ UI: PROGRESS ============================ */
+function ScreenProgress(){
+  const r = Store.primaryRoutine();
+  if(!r) return `<div class="screen">${emptyHome()}</div>`;
+  const st = Store.statsFor(r.id);
+  const today = todayISO();
+  const curIdx = clamp(daysBetween(r.startDate,today)+1,1,r.duration);
+  const subj = Store.subjectStats(r.id);
+  const time = Store.totalStudyMinutes();
+  const streak = Store.streak(r.id);
+  const milestones=[7,14,30,60,90];
+  const nextMs = milestones.find(m=>m>streak);
+
+  return `<div class="screen" style="padding:0 16px 24px">
+    <header style="padding:20px 0 14px"><h1 style="margin:0;font-size:21px;font-weight:700">Progress</h1>
+      <p class="muted2" style="margin:3px 0 0;font-size:13px">${esc(r.name)}</p></header>
+
+    <section class="card" style="padding:18px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:center;margin-bottom:14px">
+        <div style="position:relative;width:120px;height:120px">
+          ${ringSvg(st.pct)}
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <span style="font-size:26px;font-weight:750">${st.pct}%</span>
+            <span class="muted2" style="font-size:11px">complete</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        ${statCell("Current day","Day "+curIdx)}
+        ${statCell("Total days",r.duration)}
+        ${statCell("Completed days",st.doneDays)}
+        ${statCell("Tasks",st.doneTasks+" / "+st.totalTasks)}
+      </div>
+    </section>
+
+    <section class="card" style="padding:16px;margin-bottom:12px">
+      <h2 style="margin:0 0 12px;font-size:14px;font-weight:650">Subject progress</h2>
+      ${subj.length? subj.map(s=>`
+        <div style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
+            <span style="font-weight:550">${esc(s.name)}</span><span class="muted2">${s.pct}% · ${s.done}/${s.total}</span>
+          </div>
+          <div class="bar"><i style="width:${s.pct}%"></i></div>
+        </div>`).join("") : `<p class="muted" style="margin:0;font-size:14px">No tasks yet.</p>`}
+    </section>
+
+    <section class="card" style="padding:16px;margin-bottom:12px">
+      <h2 style="margin:0 0 12px;font-size:14px;font-weight:650">Study time</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center">
+        <div><div style="font-size:19px;font-weight:700">${fmtDur(time.today)}</div><div class="muted2" style="font-size:11px">Today</div></div>
+        <div><div style="font-size:19px;font-weight:700">${fmtDur(time.week)}</div><div class="muted2" style="font-size:11px">This week</div></div>
+        <div><div style="font-size:19px;font-weight:700">${fmtDur(time.all)}</div><div class="muted2" style="font-size:11px">All time</div></div>
+      </div>
+    </section>
+
+    <section class="card" style="padding:16px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:44px;height:44px;border-radius:14px;background:${streak>0?"var(--warn-soft)":"var(--surface-2)"};color:${streak>0?"var(--warn)":"var(--text-3)"};display:flex;align-items:center;justify-content:center">
+          ${icon("flame",undefined,24)}</div>
+        <div style="flex:1">
+          <div style="font-size:16px;font-weight:700">${streak} day streak</div>
+          <div class="muted2" style="font-size:12px">${nextMs?`Next milestone: ${nextMs} days`:"Milestone reached"}</div>
+        </div>
+        <div style="display:flex;gap:4px">${milestones.map(m=>`<span class="tag ${streak>=m?"t-success":"t-soft"}">${m}</span>`).join("")}</div>
+      </div>
+    </section>
+  </div>`;
+}
+function statCell(label,val){
+  return `<div style="background:var(--surface-2);border-radius:var(--r-md);padding:10px 12px">
+    <div style="font-size:16px;font-weight:700">${esc(val)}</div><div class="muted2" style="font-size:11px">${esc(label)}</div></div>`;
+}
+function ringSvg(p){
+  const R=52, C=2*Math.PI*R, off=C-(p/100)*C;
+  return `<svg width="120" height="120" viewBox="0 0 120 120" style="transform:rotate(-90deg)">
+    <circle cx="60" cy="60" r="${R}" fill="none" stroke="var(--surface-3)" stroke-width="10"/>
+    <circle cx="60" cy="60" r="${R}" fill="none" stroke="${p===100?"var(--success)":"var(--primary)"}" stroke-width="10"
+      stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${off}" style="transition:stroke-dashoffset .5s var(--ease)"/>
+  </svg>`;
+}
+
+/* ============================ UI: NOTES ============================ */
+function ScreenNotes(){
+  const s = Store.s;
+  const editingId = s.ui.editingNoteId;
+  if(editingId) return noteEditor(editingId);
+  const q = (s.ui.notesQuery||"").toLowerCase();
+  let notes = [...s.notes].sort((a,b)=>b.updatedAt-a.updatedAt);
+  if(q) notes = notes.filter(n=>(n.title+" "+n.content.replace(/<[^>]+>/g," ")).toLowerCase().includes(q));
+  return `<div class="screen" style="padding:0 16px 24px">
+    <header style="padding:20px 0 12px;display:flex;align-items:center;gap:10px">
+      <h1 style="margin:0;font-size:21px;font-weight:700;flex:1">Notes</h1>
+      <button class="btn btn-primary btn-sm" data-act="new-note">${icon("plus",undefined,16)} New</button>
+    </header>
+    <div style="position:relative;margin-bottom:14px">
+      <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-3)">${icon("search",undefined,16)}</span>
+      <input class="input" id="notes-search" placeholder="Search notes" value="${esc(s.ui.notesQuery||"")}" style="padding-left:38px">
+    </div>
+    ${notes.length? notes.map(n=>`<button class="card" data-open-note="${n.id}" style="width:100%;text-align:left;padding:14px;margin-bottom:10px;display:block">
+        <div style="font-size:15px;font-weight:600;margin-bottom:2px">${esc(n.title||"Untitled")}</div>
+        <div class="muted2" style="font-size:12px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${esc((n.content||"").replace(/<[^>]+>/g," ").slice(0,140)||"Empty note")}</div>
+        <div class="muted2" style="font-size:11px;margin-top:6px">${fmtDate(isoDate(new Date(n.updatedAt)))}</div>
+      </button>`).join("")
+      : `<div class="empty"><h3>No notes yet.</h3><p>Capture what you learn.</p>
+          <button class="btn btn-primary" data-act="new-note">${icon("plus",undefined,18)} Create Note</button></div>`}
+  </div>`;
+}
+
+function noteEditor(id){
+  const isNew = id==="new";
+  const n = isNew ? { id:"new", title:"", content:"" } : (Store.s.notes.find(x=>x.id===id)||{title:"",content:""});
+  return `<div class="screen" style="padding:0">
+    <header style="padding:14px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)">
+      <button class="btn btn-icon btn-ghost" data-act="close-note" aria-label="Back">${icon("back",undefined,20)}</button>
+      <input id="note-title" class="input" placeholder="Note title" value="${esc(n.title)}" style="border:none;background:transparent;font-size:17px;font-weight:650;padding-left:4px">
+      <button class="btn btn-icon btn-ghost" data-act="delete-note" data-id="${n.id}" aria-label="Delete note">${icon("trash",undefined,19)}</button>
+    </header>
+    <div class="rte-toolbar" id="rte-toolbar">
+      <button class="rte-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+      <button class="rte-btn" data-cmd="italic" title="Italic"><i>I</i></button>
+      <button class="rte-btn" data-cmd="underline" title="Underline"><u>U</u></button>
+      <button class="rte-btn" data-cmd="formatBlock" data-val="h1" title="Heading 1">H1</button>
+      <button class="rte-btn" data-cmd="formatBlock" data-val="h2" title="Heading 2">H2</button>
+      <button class="rte-btn" data-cmd="insertUnorderedList" title="Bullet list">•—</button>
+      <button class="rte-btn" data-cmd="insertOrderedList" title="Numbered list">1.</button>
+      <button class="rte-btn" data-cmd="formatBlock" data-val="p" title="Paragraph">¶</button>
+    </div>
+    <div class="rte" id="note-body" contenteditable="true" data-placeholder="Start writing…">${n.content||""}</div>
+    <p class="muted2" style="font-size:12px;padding:0 16px 20px">Saved automatically.</p>
+  </div>`;
+}
+</script>
+
+<script id="ui-focus-more" type="application/javascript">
+/* ============================ UI: FOCUS ============================ */
+let FocusTimer = { raf:null, mode:"pomodoro", running:false, elapsed:0, target:1500, startedAt:null, sessionId:null, taskId:null };
+function ScreenFocus(){
+  const f = FocusTimer;
+  const tasks = focusCandidateTasks();
+  const remain = Math.max(0, f.target - f.elapsed);
+  const shown = f.mode==="stopwatch" ? f.elapsed : remain;
+  const m = String(Math.floor(shown/60)).padStart(2,"0"), s = String(shown%60).padStart(2,"0");
+  const p = f.mode==="pomodoro" ? clamp(f.elapsed/f.target*100,0,100) : 0;
+  return `<div class="screen" style="padding:0 16px 24px">
+    <header style="padding:20px 0 14px"><h1 style="margin:0;font-size:21px;font-weight:700">Focus</h1></header>
+    <div class="scroll-x" style="margin-bottom:16px">
+      <button class="chip ${f.mode==="pomodoro"?"active":""}" data-fmode="pomodoro">Pomodoro</button>
+      <button class="chip ${f.mode==="stopwatch"?"active":""}" data-fmode="stopwatch">Stopwatch</button>
+    </div>
+    <section class="card" style="padding:24px 16px;margin-bottom:12px;text-align:center">
+      <div style="font-size:56px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums">${m}:${s}</div>
+      ${f.mode==="pomodoro"?`<div class="bar" style="margin:16px 0"><i style="width:${p}%"></i></div>`:""}
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:12px">
+        <button class="btn btn-primary" data-focus-toggle style="min-width:130px">
+          ${f.running?icon("pause",undefined,18)+" Pause":icon("play",undefined,18)+" Start"}</button>
+        <button class="btn btn-ghost" data-focus-reset>Reset</button>
+      </div>
+      ${f.mode==="pomodoro"?`<div class="scroll-x" style="justify-content:center;margin-top:14px">
+        ${[25,45,60].map(x=>`<button class="chip ${f.target===x*60?"active":""}" data-fpreset="${x}">${x} min</button>`).join("")}
+      </div>`:""}
+    </section>
+    <section class="card" style="padding:14px">
+      <div class="label" style="margin-bottom:8px">Associate with task (optional)</div>
+      <select class="input" id="focus-task">
+        <option value="">— None —</option>
+        ${tasks.map(t=>`<option value="${t.id}" ${f.taskId===t.id?"selected":""}>${esc(Store.subjectName(t.subjectId))} · ${esc(t.title)}</option>`).join("")}
+      </select>
+    </section>
+    ${Store.s.sessions.length? `<section style="margin-top:16px">
+      <h2 style="margin:0 0 8px;font-size:14px;font-weight:650">Recent sessions</h2>
+      <div class="card" style="padding:6px 14px">
+        ${[...Store.s.sessions].sort((a,b)=>b.startedAt-a.startedAt).slice(0,6).map(s=>{
+          const t=s.taskId?Store.s.tasks.find(x=>x.id===s.taskId):null;
+          return `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px">
+            <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t?t.title:"Focus session")}</span>
+            <span class="muted2" style="flex:0 0 auto;margin-left:10px">${fmtDur(s.duration||0)}</span></div>`;
+        }).join("")}
+      </div></section>`:""}
+  </div>`;
+}
+function focusCandidateTasks(){
+  const r = Store.primaryRoutine(); if(!r) return Store.s.tasks.slice(0,50);
+  const today = todayISO();
+  const idx = clamp(daysBetween(r.startDate,today)+1,1,r.duration);
+  const day = Store.dayOfNumber(r.id,idx);
+  return (day?Store.tasksOf(day.id):[]).filter(t=>!t.completed);
+}
+
+/* ============================ UI: TEMPLATES ============================ */
+function ScreenTemplates(){
+  const tpls = Store.s.templates;
+  const routines = Store.s.routines;
+  return `<div class="screen" style="padding:0 16px 24px">
+    <header style="padding:20px 0 14px"><h1 style="margin:0;font-size:21px;font-weight:700">Templates</h1>
+      <p class="muted2" style="margin:3px 0 0;font-size:13px">Reusable routine blueprints</p></header>
+    ${routines.length?`<div class="card" style="padding:14px;margin-bottom:16px">
+      <div class="label">Save a routine as template</div>
+      <select class="input" id="tpl-source" style="margin-bottom:10px">${routines.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join("")}</select>
+      <button class="btn btn-ghost" data-act="save-template" style="width:100%">${icon("template",undefined,16)} Save as template</button>
+    </div>`:""}
+    ${tpls.length? tpls.map(t=>`<div class="card" style="padding:14px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:15px;font-weight:600">${esc(t.name)}</div>
+            <div class="muted2" style="font-size:12px">${t.data.duration} days · ${(t.data.days||[]).reduce((a,d)=>a+(d.tasks||[]).length,0)} tasks</div>
+          </div>
+          <button class="btn btn-primary btn-sm" data-use-template="${t.id}">Use</button>
+          <button class="btn btn-icon btn-ghost" data-del-template="${t.id}" aria-label="Delete template" style="min-height:36px;width:36px">${icon("trash",undefined,17)}</button>
+        </div></div>`).join("")
+      : `<div class="empty"><h3>No templates yet.</h3><p>Save a routine to reuse it later.</p></div>`}
+  </div>`;
+}
+
+/* ============================ UI: MORE / SETTINGS ============================ */
+function ScreenMore(){
+  const theme = Store.s.settings.theme;
+  const ai = Store.s.settings.ai;
+  return `<div class="screen" style="padding:0 16px 24px">
+    <header style="padding:20px 0 14px"><h1 style="margin:0;font-size:21px;font-weight:700">More</h1></header>
+    <div class="card" style="padding:6px;margin-bottom:12px">
+      ${menuRow("note","Notes","Write and search","notes")}
+      ${menuRow("timer","Focus Tools","Pomodoro & stopwatch","focus")}
+      ${menuRow("template","Templates","Reusable plans","templates")}
+    </div>
+    <div class="card" style="padding:6px;margin-bottom:12px">
+      ${menuRow("search","Search everything","Tasks, days, notes","search")}
+      ${menuRow("refresh","Import / Export","Backup & restore","data")}
+      ${menuRow("settings","Settings","Theme, AI, data","settings")}
+    </div>
+    <div class="card" style="padding:14px;margin-bottom:12px">
+      <div class="label">Appearance</div>
+      <div class="scroll-x">
+        ${["light","dark","system"].map(t=>`<button class="chip ${theme===t?"active":""}" data-theme-set="${t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join("")}
+      </div>
+    </div>
+    <div class="card" style="padding:14px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="color:var(--text-2)">${icon("key",undefined,18)}</span>
+        <div style="flex:1"><div style="font-size:14px;font-weight:600">Gemini API key</div>
+        <div class="muted2" style="font-size:12px">${ai.apiKey?"Configured · "+esc(ai.model):"Not configured"}</div></div>
+        <button class="btn btn-sm ${ai.apiKey?"btn-ghost":"btn-primary"}" data-act="ai-config">${ai.apiKey?"Change":"Add"}</button>
+      </div>
+      <p class="muted2" style="font-size:12px;margin:0">Stored locally on this device only.</p>
+    </div>
+    <p class="muted2" style="text-align:center;font-size:12px;padding:10px">InflowMap ${IM.version} · local-first study planner</p>
+  </div>`;
+}
+function menuRow(ic,title,sub,act){
+  return `<button class="menu-item" data-nav="${act}">
+    <span style="color:var(--text-2)">${icon(ic,undefined,19)}</span>
+    <span style="flex:1"><span style="display:block;font-size:15px;font-weight:550">${esc(title)}</span>
+    <span class="muted2" style="font-size:12px">${esc(sub)}</span></span>
+    <span style="color:var(--text-3)">${icon("chevronR",undefined,17)}</span></button>`;
+}
+
+function ScreenSettings(){
+  const ai = Store.s.settings.ai;
+  const routines = Store.s.routines;
+  const primary = Store.s.settings.primaryRoutineId;
+  return `<div class="screen" style="padding:0 16px 24px">
+    <header style="padding:14px 0;display:flex;align-items:center;gap:8px">
+      <button class="btn btn-icon btn-ghost" data-nav="more">${icon("back",undefined,20)}</button>
+      <h1 style="margin:0;font-size:19px;font-weight:700">Settings</h1></header>
+    <section class="card" style="padding:14px;margin-bottom:12px">
+      <div class="label">Primary routine (shows on Home)</div>
+      ${routines.length?`<select class="input" id="set-primary">${routines.map(r=>`<option value="${r.id}" ${primary===r.id?"selected":""}>${esc(r.name)}</option>`).join("")}</select>`
+        :`<p class="muted" style="font-size:13px;margin:0">No routines yet.</p>`}
+    </section>
+    <section class="card" style="padding:14px;margin-bottom:12px">
+      <div class="label">AI provider</div>
+      <select class="input" id="set-provider" style="margin-bottom:4px">
+        ${Object.entries(AIProviders).map(([id,p])=>`<option value="${id}" ${ai.provider===id?"selected":""}>${esc(p.name)}</option>`).join("")}
+      </select>
+      <p class="muted2" style="font-size:12px;margin:0 0 12px" id="set-provider-hint">${esc((AIProviders[ai.provider]||AIProviders.groq).keyHint||"")} · <a href="${(AIProviders[ai.provider]||AIProviders.groq).docs}" target="_blank" rel="noopener">get a key</a></p>
+      <label class="label" for="set-key">API key</label>
+      <input class="input" id="set-key" type="password" placeholder="paste key" value="${esc(ai.apiKey)}" autocomplete="off" spellcheck="false" style="margin-bottom:10px">
+      <label class="label" for="set-model">Model</label>
+      <select class="input" id="set-model">
+        ${((AIProviders[ai.provider]||AIProviders.groq).models).map(m=>`<option value="${m}" ${ai.model===m?"selected":""}>${m}</option>`).join("")}
+        <option value="__custom" ${!(AIProviders[ai.provider]||{}).models?.includes(ai.model)?"selected":""}>Custom…</option>
+      </select>
+      <input class="input" id="set-model-custom" placeholder="custom model id" style="margin-top:8px;${(AIProviders[ai.provider]||{}).models?.includes(ai.model)?"display:none":""}" value="${(AIProviders[ai.provider]||{}).models?.includes(ai.model)?"":esc(ai.model)}">
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-ghost btn-sm" id="set-test" style="flex:1">Test connection</button>
+      </div>
+      <div id="set-ai-status" style="display:none;padding:9px 12px;border-radius:var(--r-md);font-size:12.5px;margin-top:10px"></div>
+      <p class="muted2" style="font-size:12px;margin:10px 0 0">The key is stored only in this browser and sent directly to the provider.</p>
+    </section>
+    <section class="card" style="padding:6px;margin-bottom:12px">
+      <button class="menu-item" data-act="export-json"><span style="color:var(--text-2)">${icon("download",undefined,18)}</span>
+        <span style="flex:1;font-size:15px;font-weight:550">Export backup</span></button>
+      <button class="menu-item" data-act="import-json"><span style="color:var(--text-2)">${icon("upload",undefined,18)}</span>
+        <span style="flex:1;font-size:15px;font-weight:550">Import backup</span></button>
+      <button class="menu-item danger" data-act="clear-data"><span>${icon("trash",undefined,18)}</span>
+        <span style="flex:1;font-size:15px;font-weight:550">Clear all data</span></button>
+    </section>
+    <section class="card" style="padding:14px">
+      <div class="label">AI change history</div>
+      ${Store.s.aichanges.length? Store.s.aichanges.slice(0,10).map(c=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:550">${esc(c.description)}</div>
+          <div class="muted2" style="font-size:11px">${fmtTime(c.createdAt)}</div></div>
+          ${c.revertedAt?`<span class="tag t-soft">Undone</span>`:`<button class="btn btn-sm btn-ghost" data-undo-change="${c.id}">Undo</button>`}
+        </div>`).join("") : `<p class="muted" style="font-size:13px;margin:0">No changes recorded.</p>`}
+    </section>
+  </div>`;
+}
+</script>
+
+<script id="ai-layer" type="application/javascript">
+/* ============================ AI: provider adapter layer ============================ */
+const AIProviders = {
+  gemini:{
+    name:"Google Gemini",
+    keyHint:"Starts with AIza, ~39 characters.",
+    keyPattern:/^AIza[0-9A-Za-z_\-]{10,}$/,
+    docs:"https://aistudio.google.com/apikey",
+    models:["gemini-3.6-flash","gemini-3.5-flash","gemini-3.5-flash-lite","gemini-3.7-flash","gemini-3.8-flash"],
+    defaultModel:"gemini-3.6-flash",
+    endpoint(model,key){ return `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`; },
+    headers(){ return { "Content-Type":"application/json" }; },
+    buildBody({ system, contents, toolDeclarations }){
+      const body = { contents, systemInstruction:{ parts:[{ text:system }] },
+        generationConfig:{ temperature:0.35, maxOutputTokens:2048 } };
+      if(toolDeclarations) body.tools = [{ functionDeclarations:toolDeclarations }];
+      return body;
+    },
+    parse(resp){
+      const cand = resp?.candidates?.[0]; const parts = cand?.content?.parts||[];
+      const text = parts.filter(p=>p.text).map(p=>p.text).join("").trim();
+      const calls = parts.filter(p=>p.functionCall).map(p=>({ name:p.functionCall.name, args:p.functionCall.args||{} }));
+      return { text, calls, raw:resp };
+    }
+  },
+
+  /* Groq & Mistral (and any OpenAI-compatible endpoint) share this adapter */
+  openai:{
+    name:"OpenAI-compatible",
+    endpoint(model,key,baseUrl){ return (baseUrl||this.baseUrl).replace(/\/+$/,"")+"/chat/completions"; },
+    headers(key){ return { "Content-Type":"application/json", "Authorization":"Bearer "+key }; },
+    buildBody({ messages, system, toolDeclarations, model }){
+      const msgs = [{ role:"system", content:system }, ...messages.map(m=>({ role:m.role, content:m.content }))];
+      const body = { model, messages:msgs, temperature:0.35, max_tokens:2048 };
+      if(toolDeclarations){
+        body.tools = toolDeclarations.map(d=>({ type:"function", function:{ name:d.name, description:d.description, parameters:d.parameters } }));
+      }
+      return body;
+    },
+    parse(resp){
+      const choice = resp?.choices?.[0] || {};
+      const m = choice.message || {};
+      const text = (m.content||"").trim();
+      const calls = (m.tool_calls||[]).map(tc=>{
+        let args = {};
+        try{ args = typeof tc.function?.arguments==="string" ? JSON.parse(tc.function.arguments||"{}") : (tc.function?.arguments||{}); }
+        catch(_){ args = {}; }
+        return { name:tc.function?.name, args };
+      }).filter(c=>c.name);
+      return { text, calls, raw:resp };
+    }
+  }
+};
+/* concrete OpenAI-compatible providers are registered onto the shared adapter */
+const OPENAI_PROVIDERS = {
+  groq:{ baseUrl:"https://api.groq.com/openai/v1",
+    models:["openai/gpt-oss-120b","openai/gpt-oss-20b","llama-3.3-70b-versatile","llama-3.1-8b-instant","moonshotai/kimi-k2-instruct"],
+    defaultModel:"openai/gpt-oss-120b" },
+  mistral:{ baseUrl:"https://api.mistral.ai/v1",
+    models:["mistral-small-latest","mistral-large-latest","open-mistral-nemo","codestral-latest"],
+    defaultModel:"mistral-small-latest" }
+};
+for(const [id,cfg] of Object.entries(OPENAI_PROVIDERS)){
+  AIProviders[id] = Object.assign({}, AIProviders.openai, {
+    name: id==="groq" ? "Groq" : "Mistral AI",
+    keyHint:"Starts with "+(id==="groq"?"gsk_":"")+(id==="mistral"?"":id==="groq"?"":"")+"…",
+    keyPattern: id==="groq" ? /^gsk_[0-9A-Za-z]{20,}$/ : /^[0-9A-Za-z_\-]{16,}$/,
+    docs: id==="groq" ? "https://console.groq.com/keys" : "https://console.mistral.ai/api-keys",
+    baseUrl: cfg.baseUrl,
+    models: cfg.models,
+    defaultModel: cfg.defaultModel,
+    endpoint(model,key){ return cfg.baseUrl+"/chat/completions"; }
+  });
+}
+AIProviders.groq.keyHint = "Starts with gsk_";
+AIProviders.mistral.keyHint = "A long key from console.mistral.ai";
+
+
+const AIService = {
+  provider(){ return AIProviders[Store.s.settings.ai.provider] || AIProviders.gemini; },
+  configured(){ return !!(Store.s.settings.ai.apiKey||"").trim(); },
+  async generate({ system, messages, tools }){
+    if(!navigator.onLine) throw new AIError("You're offline. AI needs an internet connection — your study data is safe and still available.");
+    if(!this.configured()) throw new AIError("Add your "+this.provider().name+" API key in Settings to use AI.", "NO_KEY");
+    const p = this.provider(); const cfg = Store.s.settings.ai;
+    const isGemini = (cfg.provider||"gemini")==="gemini";
+    const contents = messages.map(m=>({ role:m.role==="assistant"?"model":"user", parts:[{ text:m.content }] }));
+    const body = p.buildBody({ system, messages, contents, toolDeclarations: tools, model: cfg.model });
+    let resp, lastErr;
+    for(let attempt=0; attempt<2; attempt++){
+      try{
+        const r = await fetch(p.endpoint(cfg.model,cfg.apiKey), { method:"POST", headers:p.headers(cfg.apiKey),
+          body:JSON.stringify(body) });
+        if(!r.ok){ const detail = await r.text().catch(()=> "");
+          if(r.status===400||r.status===401) throw new AIError("Your "+p.name+" API key was rejected. Open Settings and press “Test connection”.", "AUTH", detail);
+          if(r.status===403) throw new AIError(p.name+" refused this key. Check the key's permissions or billing.", "FORBIDDEN", detail);
+          if(r.status===404) throw new AIError("The selected model isn't available for this key. Pick another model in AI configuration.", "MODEL", detail);
+          if(r.status===429) throw new AIError(p.name+"'s free quota for this key is used up right now. Please try again later.", "QUOTA", detail);
+          lastErr = new AIError(p.name+" is temporarily unavailable. Your local study data is still safe.", "HTTP"+r.status, detail); 
+          await new Promise(res=>setTimeout(res,700*(attempt+1))); continue; }
+        resp = await r.json(); break;
+      }catch(e){ if(e instanceof AIError && (e.code==="AUTH"||e.code==="FORBIDDEN"||e.code==="MODEL"||e.code==="QUOTA")) throw e; lastErr = e; await new Promise(res=>setTimeout(res,700)); }
+    }
+    if(!resp) throw lastErr || new AIError(p.name+" is temporarily unavailable. Your local study data is still safe.");
+    return p.parse(resp);
+  },
+  /* stream not required; single-shot with retry is used */
+  async testKey(key, model){
+    if(!navigator.onLine) return { ok:false, message:"You're offline. Connect to the internet and try again." };
+    const k = (key||"").trim();
+    if(!k) return { ok:false, message:"Enter your API key first." };
+    const p = this.provider();
+    const isGemini = (Store.s.settings.ai.provider||"gemini")==="gemini";
+    const testBody = isGemini
+      ? JSON.stringify({ contents:[{ role:"user", parts:[{ text:"ping" }] }], generationConfig:{ maxOutputTokens:8 } })
+      : JSON.stringify({ model:model, messages:[{ role:"user", content:"ping" }], max_tokens:8 });
+    try{
+      const r = await fetch(p.endpoint(model||Store.s.settings.ai.model, k), {
+        method:"POST", headers:p.headers(k), body:testBody
+      });
+      if(r.ok) return { ok:true, model:model };
+      let reason = "";
+      try{ const j = await r.json(); reason = j?.error?.message || j?.message || ""; }catch(_){}
+      if(r.status===400) return { ok:false, message:p.name+" rejected the key. "+(reason||"It may be incorrect or copied incompletely.") };
+      if(r.status===401) return { ok:false, message:"Unauthorized — the key is wrong or missing. Check it on the provider's console." };
+      if(r.status===403) return { ok:false, message:"This key isn't allowed to use the API. Check permissions or billing." };
+      if(r.status===404) return { ok:false, message:"The model '"+model+"' isn't available for this key. Try a different model." };
+      if(r.status===429) return { ok:false, message:"The key works, but the free quota is used up right now. Try again later." };
+      return { ok:false, message:p.name+" returned error "+r.status+". "+(reason||"") };
+    }catch(e){ return { ok:false, message:"Could not reach "+p.name+". Check your internet connection." }; }
+  }
+};
+class AIError extends Error{ constructor(msg,code,detail){ super(msg); this.code=code||"AI"; this.detail=detail||""; } }
+
+/* ============================ AI: tool layer (validated actions) ============================ */
+const AITools = {
+  declarations(){ return [
+    fn("getContext","Return a compact snapshot of routines, current day and progress.", {}),
+    fn("getDay","Get a day and its tasks by day number.", { dayNumber:{type:"integer"}, routineId:{type:"string"} }),
+    fn("searchApp","Search tasks, days and notes.", { query:{type:"string"} }),
+    fn("getProgress","Progress stats for a routine.", { routineId:{type:"string"} }),
+    fn("getStudySessions","Recent study sessions.", { limit:{type:"integer"} }),
+    fn("createRoutine","Create a complete new routine.", { name:{type:"string"}, duration:{type:"integer"}, startDate:{type:"string"}, plan:{type:"array",items:{type:"object"}} }),
+    fn("createTask","Add a task to a day.", { dayNumber:{type:"integer"}, subject:{type:"string"}, title:{type:"string"} }),
+    fn("updateTask","Edit an existing task by its id.", { taskId:{type:"string"}, title:{type:"string"}, subject:{type:"string"} }),
+    fn("deleteTask","Delete a task by id.", { taskId:{type:"string"} }),
+    fn("moveTask","Move a task to another day number.", { taskId:{type:"string"}, targetDayNumber:{type:"integer"} }),
+    fn("duplicateTask","Duplicate a task by id.", { taskId:{type:"string"} }),
+    fn("completeTask","Mark a task complete or incomplete.", { taskId:{type:"string"}, completed:{type:"boolean"} }),
+    fn("createNote","Create a note.", { title:{type:"string"}, content:{type:"string"} })
+  ]; },
+  /* Read-only tools execute immediately. Mutating tools are staged, validated, and require approval. */
+  async execute(name, args, ctx){
+    const r = ctx.routine || Store.primaryRoutine();
+    switch(name){
+      case "getContext": return AIAgent.contextSnapshot();
+      case "getDay": { const d = dayNum(r,args.dayNumber); return d? { dayNumber:d.dayNumber, date:d.date, tasks:Store.tasksOf(d.id).map(slim) } : { error:"Day not found" }; }
+      case "searchApp": return searchAll(args.query||"").slice(0,25);
+      case "getProgress": return Store.statsFor((r||{}).id) || {};
+      case "getStudySessions": return [...Store.s.sessions].sort((a,b)=>b.startedAt-a.startedAt).slice(0,args.limit||10).map(s=>({ duration:s.duration, startedAt:s.startedAt, task:s.taskId }));
+      default: throw new AIError("Unknown tool: "+name);
+    }
+  }
+};
+function fn(name,description,properties){
+  return { name, description, parameters:{ type:"object", properties, required:Object.keys(properties) } };
+}
+function slim(t){ return { id:t.id, title:t.title, subject:Store.subjectName(t.subjectId), completed:t.completed, estimatedMinutes:t.estimatedMinutes||0 }; }
+function dayNum(r,n){ if(!r) return null; n=parseInt(n,10); if(!n) return null; return Store.dayOfNumber(r.id,n); }
+function searchAll(q){
+  q=(q||"").toLowerCase(); if(!q) return [];
+  const out=[];
+  Store.s.tasks.forEach(t=>{ if(t.title.toLowerCase().includes(q)){ const d=Store.day(t.dayId);
+    out.push({ type:"task", taskId:t.id, dayNumber:d?d.dayNumber:null, date:d?d.date:null, title:t.title, subject:Store.subjectName(t.subjectId) }); } });
+  Store.s.notes.forEach(n=>{ if((n.title+" "+n.content).toLowerCase().includes(q)) out.push({ type:"note", noteId:n.id, title:n.title||"Untitled" }); });
+  return out;
+}
+</script>
+
+<script id="ai-agent" type="application/javascript">
+/* ============================ AI AGENT (proposal → diff → approval → commit) ============================ */
+const AIAgent = {
+  busy:false,
+  lastError:null,
+  pending:null, // staged proposal awaiting approval
+
+  contextSnapshot(){
+    const r = Store.primaryRoutine();
+    if(!r) return { routines:[], note:"No routine yet." };
+    const today = todayISO();
+    const curIdx = clamp(daysBetween(r.startDate,today)+1,1,r.duration);
+    const day = Store.dayOfNumber(r.id,curIdx);
+    const tasks = day?Store.tasksOf(day.id):[];
+    const st = Store.statsFor(r.id);
+    return {
+      routine:{ id:r.id, name:r.name, startDate:r.startDate, duration:r.duration, currentDay:curIdx },
+      today:{ dayNumber:curIdx, date:today, tasks:tasks.map(slim), done:tasks.filter(t=>t.completed).length, total:tasks.length },
+      progress:{ completedDays:st.doneDays, totalDays:st.totalDays, doneTasks:st.doneTasks, totalTasks:st.totalTasks, pct:st.pct },
+      subjects: Store.subjectStats(r.id).map(s=>({ name:s.name, pct:s.pct, total:s.total })),
+      routines: Store.s.routines.map(x=>({ id:x.id, name:x.name, duration:x.duration, status:x.status, primary:x.isPrimary })),
+      notesCount: Store.s.notes.length,
+      sessionsRecent: Store.s.sessions.slice(-5).map(s=>({ minutes:s.duration, taskId:s.taskId }))
+    };
+  },
+
+  systemPrompt(){
+    return `You are the InflowMap planning agent — an action-taking assistant inside a personal study planner.
+You help the user plan, restructure and analyse their study routine. Understand Bengali, English and mixed commands.
+
+RULES:
+- Today's date is ${todayISO()}.
+- Resolve references like "এই দিন", "today", "এই task" using the CONTEXT block.
+- Never invent task ids. If you need ids, first call getDay / searchApp.
+- To CHANGE the plan, return a JSON object in a fenced block \`\`\`json ... \`\`\` of the form:
+  { "summary": "short description", "actions": [ { "action":"move_task", "taskId":"...", "targetDayNumber": 26 }, ... ] }
+  Valid actions: move_task, copy_task, delete_task, duplicate_task, update_task, complete_task, create_task, create_routine, create_note.
+- For create_task include dayNumber, subject, title. For create_routine include name, duration, startDate, plan (array of {subjects:[{name,topics:[]}]} in day order).
+- If no change is needed, answer normally in prose, without a JSON block.
+- Keep prose short. Do not produce destructive changes without listing them as actions.
+- All changes are shown to the user as a diff and only applied after approval.`;
+  },
+
+  async send(userText){
+    this.lastError=null;
+    const ctx = this.contextSnapshot();
+    const r = Store.primaryRoutine();
+    const focusedDay = Store.s.ui.focusDayId ? Store.day(Store.s.ui.focusDayId) : null;
+    const focusTask = Store.s.ui.editingTaskId ? Store.s.tasks.find(t=>t.id===Store.s.ui.editingTaskId) : null;
+    const contextBlock = `CONTEXT:\n${JSON.stringify(ctx)}\n` +
+      (focusedDay? `USER IS VIEWING: Day ${focusedDay.dayNumber} (${focusedDay.date})\n`:"") +
+      (focusTask? `USER SELECTED TASK: ${focusTask.id} "${focusTask.title}"\n`:"") +
+      (Store.s.ui.aiContext? `SCREEN CONTEXT: ${Store.s.ui.aiContext}\n`:"");
+
+    // prior turns
+    const history = (Store.s.ui.aiMessages||[]).slice(-8).map(m=>({ role:m.role, content:m.content }));
+    const messages = [ { role:"user", content: contextBlock + "\nUSER REQUEST:\n" + userText } ];
+    // fold history before the request for continuity
+    history.slice(0,-0).forEach(h=>{});
+    const conversation = [...history.slice(0,-1).filter(h=>!h.pending), ...messages]; // don't feed pending previews
+
+    const replies = [];
+    let proposal = null;
+    let turns = 0;
+    let workingMessages = conversation;
+    while(turns++ < 4){
+      const out = await AIService.generate({ system:this.systemPrompt(), messages:workingMessages, tools:AITools.declarations() });
+      if(out.calls && out.calls.length){
+        const results = [];
+        for(const c of out.calls){
+          try{ results.push({ name:c.name, result: await AITools.execute(c.name,c.args,{ routine:r }) }); }
+          catch(e){ results.push({ name:c.name, error:e.message }); }
+        }
+        workingMessages = [...workingMessages, { role:"assistant", content:(out.text||"")+"\n[called: "+out.calls.map(c=>c.name).join(", ")+"]" },
+          { role:"user", content:"TOOL RESULTS:\n"+JSON.stringify(results) }];
+        continue;
+      }
+      if(out.text) replies.push(out.text);
+      // extract proposal
+      proposal = extractProposal(out.text);
+      break;
+    }
+    const text = replies.join("\n\n").replace(/```json[\s\S]*?```/g,"").trim() || (proposal? "I prepared changes for your approval." : "");
+    return { text, proposal };
+  },
+
+  /* Validate + stage actions; returns rich preview. Does NOT mutate. */
+  async stage(actions, summary){
+    const r = Store.primaryRoutine();
+    const ops = [];
+    const problems = [];
+    for(const a of actions||[]){
+      try{ ops.push(validateAction(a, r)); }
+      catch(e){ problems.push({ action:a, error:e.message }); }
+    }
+    if(!ops.length) throw new AIError("The proposed change was invalid and was not applied." + (problems.length? " ("+problems[0].error+")" : ""));
+    this.pending = { ops, problems, summary: summary||"Plan change", createdAt:Date.now() };
+    return this.pending;
+  },
+
+  async apply(){
+    if(!this.pending) throw new AIError("Nothing to apply.");
+    const { ops } = this.pending;
+    const snapshot = JSON.parse(JSON.stringify({ tasks:Store.s.tasks, days:Store.s.days, routines:Store.s.routines }));
+    const applied = [];
+    try{
+      for(const op of ops){ await runOp(op); applied.push(op); }
+    }catch(e){
+      await restoreSnapshot(snapshot);
+      this.pending = null;
+      throw new AIError("A change failed and nothing was applied. Original state restored.");
+    }
+    await Cmd.pushAIChange({ description: this.pending.summary, scope:"ai",
+      previousState:{ taskCount:snapshot.tasks.length, dayCount:snapshot.days.length, routineCount:snapshot.routines.length },
+      newState:{ taskCount:Store.s.tasks.length, dayCount:Store.s.days.length, routineCount:Store.s.routines.length },
+      undo: async ()=>{ await restoreSnapshot(snapshot); Store.emit(); toast("Change undone"); } });
+    this.pending = null;
+    Store.emit();
+    return applied.length;
+  },
+
+  reject(){ this.pending=null; }
+};
+
+/* --- action validation (never trust raw AI arguments) --- */
+function validateAction(a, r){
+  const act = String(a.action||"").trim();
+  const int = v => { const n = parseInt(v,10); if(!Number.isFinite(n)) throw new Error("Invalid number"); return n; };
+  const taskExists = id => Store.s.tasks.some(t=>t.id===id);
+  switch(act){
+    case "move_task": case "copy_task": {
+      if(!taskExists(a.taskId)) throw new Error("Task not found: "+a.taskId);
+      const d = dayNum(r, int(a.targetDayNumber)); if(!d) throw new Error("Target day not found");
+      return { act, taskId:a.taskId, targetDayId:d.id, label:`${act==="move_task"?"Move":"Copy"} "${Store.s.tasks.find(t=>t.id===a.taskId).title}" → Day ${d.dayNumber}`, from:Store.day(Store.s.tasks.find(t=>t.id===a.taskId).dayId), to:d };
+    }
+    case "delete_task": {
+      if(!taskExists(a.taskId)) throw new Error("Task not found");
+      const t=Store.s.tasks.find(x=>x.id===a.taskId);
+      return { act, taskId:a.taskId, label:`Delete "${t.title}"`, from:Store.day(t.dayId) };
+    }
+    case "duplicate_task": {
+      if(!taskExists(a.taskId)) throw new Error("Task not found");
+      const t=Store.s.tasks.find(x=>x.id===a.taskId);
+      return { act, taskId:a.taskId, label:`Duplicate "${t.title}"`, from:Store.day(t.dayId) };
+    }
+    case "update_task": {
+      if(!taskExists(a.taskId)) throw new Error("Task not found");
+      return { act, taskId:a.taskId, patch:{ title:a.title, subjectName:a.subject }, label:`Edit "${Store.s.tasks.find(t=>t.id===a.taskId).title}"`, from:Store.day(Store.s.tasks.find(t=>t.id===a.taskId).dayId) };
+    }
+    case "complete_task": {
+      if(!taskExists(a.taskId)) throw new Error("Task not found");
+      const t=Store.s.tasks.find(x=>x.id===a.taskId);
+      return { act, taskId:a.taskId, completed:!!a.completed, label:`${a.completed?"Complete":"Reopen"} "${t.title}"`, from:Store.day(t.dayId) };
+    }
+    case "create_task": {
+      const d = dayNum(r, int(a.dayNumber)); if(!d) throw new Error("Day not found");
+      const title = String(a.title||"").trim(); if(!title) throw new Error("Task needs a title");
+      return { act, dayId:d.id, subject:String(a.subject||"General"), title, label:`Add "${title}" (${a.subject||"General"}) to Day ${d.dayNumber}`, to:d };
+    }
+    case "create_note": {
+      return { act, title:String(a.title||"Note").slice(0,120), content:String(a.content||""), label:`Create note "${a.title||"Note"}"` };
+    }
+    case "create_routine": {
+      const duration = clamp(int(a.duration)||30,1,1000);
+      return { act, name:String(a.name||"New Routine").slice(0,80), duration, startDate:a.startDate||todayISO(), plan:Array.isArray(a.plan)?a.plan:[], label:`Create routine "${a.name}" (${duration} days)` };
+    }
+    default: throw new Error("Unsupported action: "+act);
+  }
+}
+
+async function runOp(op){
+  switch(op.act){
+    case "move_task": return Cmd.moveTask(op.taskId, op.targetDayId, { copy:false });
+    case "copy_task": return Cmd.moveTask(op.taskId, op.targetDayId, { copy:true });
+    case "delete_task": return Cmd.deleteTask(op.taskId);
+    case "duplicate_task": return Cmd.duplicateTask(op.taskId);
+    case "update_task": return Cmd.updateTask(op.taskId, op.patch);
+    case "complete_task": return Cmd.setTaskComplete(op.taskId, op.completed, { silent:true });
+    case "create_task": return Cmd.createTask({ dayId:op.dayId, subjectName:op.subject, title:op.title });
+    case "create_note": return Cmd.createNote({ title:op.title, content:op.content });
+    case "create_routine": { const plan = op.plan.map(d=>d && d.subjects ? d : { subjects:[] }); return Cmd.createRoutine({ name:op.name, startDate:op.startDate, duration:op.duration, days:plan }); }
+    default: throw new Error("Unsupported action");
+  }
+}
+
+async function restoreSnapshot(snap){
+  // full restore of mutated stores
+  await DB.txn(["tasks","days","routines"],"readwrite", async t=>{
+    await t.clear("tasks"); await t.clear("days"); await t.clear("routines");
+    for(const x of snap.tasks) await t.put("tasks",x);
+    for(const x of snap.days) await t.put("days",x);
+    for(const x of snap.routines) await t.put("routines",x);
+  });
+  Store.s.tasks = snap.tasks; Store.s.days = snap.days; Store.s.routines = snap.routines;
+}
+
+function extractProposal(text){
+  if(!text) return null;
+  const m = text.match(/```json\s*([\s\S]*?)```/i);
+  if(!m) return null;
+  try{ const j = JSON.parse(m[1]);
+    if(j && Array.isArray(j.actions)) return { summary:j.summary||"Plan change", actions:j.actions };
+  }catch(e){ console.warn("Malformed AI proposal", e); }
+  return null;
+}
+
+function proposalDiffHtml(pending){
+  const r = Store.primaryRoutine();
+  return pending.ops.map(op=>{
+    if(op.act==="create_routine"){
+      return `<div class="diff-add" style="margin-bottom:8px"><div style="font-weight:650;font-size:13px">+ New routine</div>
+        <div style="font-size:13px">${esc(op.name)} · ${op.duration} days from ${esc(fmtDate(op.startDate))}</div>
+        <div class="muted2" style="font-size:12px">${op.plan.length} day(s) with tasks</div></div>`;
+    }
+    if(op.act==="create_task" || op.act==="copy_task" || op.act==="duplicate_task"){
+      return `<div class="diff-add" style="margin-bottom:8px"><div style="font-weight:650;font-size:13px">+ ${esc(op.label)}</div></div>`;
+    }
+    if(op.act==="delete_task"){
+      return `<div class="diff-del" style="margin-bottom:8px"><div style="font-weight:650;font-size:13px">− ${esc(op.label)}${op.from?` (was Day ${op.from.dayNumber})`:""}</div></div>`;
+    }
+    if(op.act==="update_task" || op.act==="complete_task"){
+      return `<div class="diff-mod" style="margin-bottom:8px"><div style="font-weight:650;font-size:13px">~ ${esc(op.label)}${op.from?` · Day ${op.from.dayNumber}`:""}</div></div>`;
+    }
+    if(op.act==="move_task"){
+      return `<div class="diff-mod" style="margin-bottom:8px"><div style="font-weight:650;font-size:13px">→ ${esc(op.label)}</div>
+        <div class="muted2" style="font-size:12px">Day ${op.from?op.from.dayNumber:"?"} → Day ${op.to.dayNumber}</div></div>`;
+    }
+    return "";
+  }).join("");
+}
+</script>
+
+<script id="ui-ai" type="application/javascript">
+/* ============================ UI: AI SCREEN ============================ */
+function ScreenAI(){
+  const s = Store.s;
+  const msgs = s.ui.aiMessages||[];
+  const busy = AIAgent.busy;
+  return `<div class="screen" style="padding:0 0 8px;display:flex;flex-direction:column;min-height:calc(100dvh - 60px)">
+    <header style="padding:18px 16px 10px;display:flex;align-items:center;gap:10px">
+      <div style="flex:1"><h1 style="margin:0;font-size:21px;font-weight:700">AI</h1>
+      <p class="muted2" style="margin:2px 0 0;font-size:12px">${AIService.configured()?"Gemini · "+esc(s.settings.ai.model):"Not configured"}</p></div>
+      <button class="btn btn-icon btn-ghost" data-act="ai-config" aria-label="AI settings">${icon("settings",undefined,19)}</button>
+    </header>
+    <div id="ai-scroll" style="flex:1;overflow-y:auto;padding:6px 16px 8px">
+      ${msgs.length? msgs.map(m=>msgBubble(m)).join("") : aiEmptyState()}
+      ${busy?`<div class="card" style="padding:12px;margin-bottom:10px;max-width:80%"><div class="skeleton" style="height:14px;width:70%;margin-bottom:6px"></div><div class="skeleton" style="height:14px;width:45%"></div></div>`:""}
+    </div>
+    ${!AIService.configured()?`<div style="padding:0 16px 8px"><button class="btn btn-primary" data-act="ai-config" style="width:100%">${icon("key",undefined,17)} Connect Gemini</button></div>`:""}
+    <div style="padding:8px 12px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--border);background:var(--surface);display:flex;gap:8px;align-items:flex-end">
+      <textarea id="ai-input" class="input" rows="1" placeholder="Ask anything about your plan…" style="min-height:44px;max-height:120px;resize:none"></textarea>
+      <button class="btn btn-primary btn-icon" data-act="ai-send" aria-label="Send" ${busy?"disabled":""}>${icon("sparkle",undefined,20)}</button>
+    </div>
+  </div>`;
+}
+function aiEmptyState(){
+  const chips = ["আগামী তিন দিনের workload balance কর","আজকের incomplete কাজ পরের ৩ দিনে ভাগ কর","পরের ৭ দিন revision-heavy plan সাজাও"];
+  return `<div style="padding:24px 4px">
+    <div style="width:48px;height:48px;border-radius:16px;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;margin-bottom:14px">${icon("sparkle",undefined,24)}</div>
+    <h2 style="margin:0 0 6px;font-size:17px;font-weight:650">Your planning agent</h2>
+    <p class="muted" style="margin:0 0 16px;font-size:14px">It can see your routine, today's work and progress — and proposes changes for your approval before anything is saved.</p>
+    ${chips.map(c=>`<button class="card" data-ai-chip="${esc(c)}" style="width:100%;text-align:left;padding:12px;margin-bottom:8px;display:block;font-size:14px">${esc(c)}</button>`).join("")}
+  </div>`;
+}
+function msgBubble(m){
+  if(m.role==="user") return `<div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+    <div style="background:var(--primary);color:var(--primary-contrast);padding:10px 14px;border-radius:var(--r-lg);border-bottom-right-radius:6px;max-width:85%;font-size:14px;white-space:pre-wrap" class="bn">${esc(m.content)}</div></div>`;
+  const pendingHtml = m.pending ? `<div class="card" style="margin-top:10px;padding:12px;border-color:var(--primary)">
+      <div style="font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--primary);margin-bottom:8px">AI PLAN CHANGE</div>
+      ${m.pending.diffHtml}
+      ${m.pending.problems&&m.pending.problems.length?`<div class="diff-del" style="margin-top:6px;font-size:12px">${esc(m.pending.problems.length)} action(s) could not be validated and were skipped.</div>`:""}
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-ghost btn-sm" style="flex:1" data-ai-cancel>Cancel</button>
+        <button class="btn btn-primary btn-sm" style="flex:1" data-ai-apply>Apply Changes</button>
+      </div></div>` : "";
+  return `<div style="display:flex;margin-bottom:10px">
+    <div style="background:var(--surface);border:1px solid var(--border);padding:12px 14px;border-radius:var(--r-lg);border-bottom-left-radius:6px;max-width:88%;font-size:14px;white-space:pre-wrap" class="bn">${esc(m.content)}${pendingHtml}</div></div>`;
+}
+function renderAIScreenScroll(){ const sc=$("#ai-scroll"); if(sc) sc.scrollTop = sc.scrollHeight; }
+
+const AI_QUICK_PROMPTS = {
+  "new-routine":"I want to build a new study routine. Ask me what you need to know first.",
+  "bulk-routine":"Help me structure a routine from a pasted plan."
+};
+
+function openAIConfig(prefillContext){
+  const ai = Store.s.settings.ai;
+  const p = AIProviders[ai.provider] || AIProviders.groq;
+  const inList = (p.models||[]).includes(ai.model);
+  const layer = sheet("AI configuration", `
+    <p class="muted" style="margin:0 0 14px;font-size:13px">InflowMap uses your own AI provider key. It is stored only on this device and sent straight to the provider — never to us.</p>
+    <label class="label" for="ai-provider">Provider</label>
+    <select class="input" id="ai-provider" style="margin-bottom:4px">
+      ${Object.entries(AIProviders).map(([id,pr])=>`<option value="${id}" ${ai.provider===id?"selected":""}>${esc(pr.name)}</option>`).join("")}
+    </select>
+    <p class="muted2" style="font-size:12px;margin:0 0 14px" id="ai-hint">${esc(p.keyHint||"")} · <a href="${p.docs}" target="_blank" rel="noopener">get a key</a></p>
+    <label class="label" for="ai-key">API key</label>
+    <input class="input" id="ai-key" type="password" placeholder="paste key" value="${esc(ai.apiKey)}" autocomplete="off" spellcheck="false" style="margin-bottom:14px">
+    <label class="label" for="ai-model">Model</label>
+    <select class="input" id="ai-model" style="margin-bottom:8px">
+      ${(p.models||[]).map(m=>`<option value="${m}" ${ai.model===m?"selected":""}>${m}</option>`).join("")}
+      <option value="__custom" ${!inList?"selected":""}>Custom…</option>
+    </select>
+    <input class="input" id="ai-model-custom" placeholder="custom model id" value="${inList?"":esc(ai.model)}" style="margin-bottom:16px;${inList?"display:none":""}">
+    <div id="ai-status" style="display:none;padding:10px 12px;border-radius:var(--r-md);font-size:13px;margin-bottom:14px"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" id="ai-test" style="flex:1">Test connection</button>
+      <button class="btn btn-primary" id="ai-save" style="flex:1">Save</button>
+    </div>
+    <details style="margin-top:14px">
+      <summary class="muted" style="font-size:12.5px;cursor:pointer">Key not working? Common causes</summary>
+      <ul class="muted2" style="font-size:12.5px;line-height:1.7;margin:8px 0 0;padding-left:20px">
+        <li>The key was not saved yet — press <b>Save</b> after pasting.</li>
+        <li>The key is incomplete or has extra spaces.</li>
+        <li>The key belongs to a different provider than the one selected above.</li>
+        <li>The model name is not available for this key — try another model.</li>
+        <li>Free-tier quota exhausted (usually resets after 24h).</li>
+      </ul>
+    </details>`);
+  const keyEl = layer.querySelector("#ai-key"), modelEl = layer.querySelector("#ai-model");
+  const customEl = layer.querySelector("#ai-model-custom");
+  const provEl = layer.querySelector("#ai-provider"), hintEl = layer.querySelector("#ai-hint");
+  const statusEl = layer.querySelector("#ai-status");
+  const showStatus = (kind,msg)=>{ statusEl.style.display="block";
+    statusEl.style.background = kind==="ok"?"var(--success-soft)":kind==="warn"?"var(--warn-soft)":"var(--danger-soft)";
+    statusEl.style.color = kind==="ok"?"var(--success)":kind==="warn"?"var(--warn)":"var(--danger)";
+    statusEl.textContent = msg; };
+
+  provEl.onchange = ()=>{ const np = AIProviders[provEl.value]||AIProviders.groq;
+    hintEl.innerHTML = esc(np.keyHint||"")+' · <a href="'+np.docs+'" target="_blank" rel="noopener">get a key</a>';
+    modelEl.innerHTML = np.models.map(m=>`<option value="${m}">${m}</option>`).join("") + '<option value="__custom">Custom…</option>';
+    modelEl.value = np.defaultModel; customEl.style.display="none"; customEl.value=""; keyEl.value="";
+    showStatus("warn","Switched to "+np.name+". Paste that provider's key."); };
+  modelEl.onchange = ()=>{ const custom = modelEl.value==="__custom";
+    customEl.style.display = custom?"block":"none"; if(custom) customEl.focus(); };
+
+  const chosenModel = ()=> modelEl.value==="__custom" ? (customEl.value.trim()||Store.s.settings.ai.model) : modelEl.value;
+
+  layer.querySelector("#ai-test").onclick = async ()=>{
+    const key = keyEl.value.trim();
+    if(!key){ showStatus("bad","Enter your API key first."); return; }
+    // persist provider+key first so the service tests the right endpoint
+    await Store.saveSettings({ ai:{ provider:provEl.value, apiKey:key, model:chosenModel() } });
+    showStatus("warn","Testing…");
+    const res = await AIService.testKey(key, chosenModel());
+    if(res.ok) showStatus("ok","Working — the key is valid ("+res.model+").");
+    else showStatus("bad", res.message);
+  };
+  layer.querySelector("#ai-save").onclick = async ()=>{
+    const key = keyEl.value.trim();
+    if(!key){ showStatus("bad","Enter your API key first."); return; }
+    const np = AIProviders[provEl.value]||AIProviders.groq;
+    if(np.keyPattern && !np.keyPattern.test(key)) showStatus("warn","That doesn't look like a "+np.name+" key. Saving anyway — use Test connection to check.");
+    await Store.saveSettings({ ai:{ provider:provEl.value, apiKey:key, model:chosenModel() } });
+    toast("AI settings saved"); render();
+    if(prefillContext) pushAI(prefillContext);
+  };
+}
+
+/* conversation flow */
+function pushAI(text){
+  const s = Store.s;
+  if(!s.ui.aiMessages) s.ui.aiMessages = [];
+  s.ui.aiMessages.push({ role:"user", content:text });
+  Store.emit();
+  AIAgent.busy = true; Store.emit();
+  AIAgent.send(text).then(async ({ text:reply, proposal })=>{
+    const msg = { role:"assistant", content: reply || "Done." };
+    if(proposal){
+      try{
+        const pending = await AIAgent.stage(proposal.actions, proposal.summary);
+        msg.pending = { diffHtml: proposalDiffHtml(pending), problems: pending.problems, summary: pending.summary };
+        msg.content = (reply || "").trim() || "Here's what I suggest changing:";
+      }catch(e){ msg.content = (reply||"") + "\n\n" + e.message; }
+    }
+    s.ui.aiMessages.push(msg);
+    AIAgent.busy=false; Store.emit(); setTimeout(renderAIScreenScroll, 50);
+  }).catch(err=>{
+    const s2=Store.s; s2.ui.aiMessages.push({ role:"assistant", content: err.message || "AI is temporarily unavailable. Your local study data is still safe." });
+    AIAgent.busy=false; Store.emit(); setTimeout(renderAIScreenScroll,50);
+  });
+}
+</script>
+
+<script id="router" type="application/javascript">
+/* ============================ ROUTER + SHELL RENDER ============================ */
+let CURRENT_SCREEN = "home";
+const SCREENS = { home:ScreenHome, routine:ScreenRoutine, ai:ScreenAI, progress:ScreenProgress, more:ScreenMore };
+
+function navTo(screen, opts={}){
+  if(screen==="notes"||screen==="focus"||screen==="templates"||screen==="settings"||screen==="data"||screen==="search")
+    return navToSub(screen);
+  CURRENT_SCREEN = screen in SCREENS ? screen : "home";
+  Store.s.ui.screen = CURRENT_SCREEN;
+  render();
+  if(opts.scrollTop!==false) window.scrollTo({ top:0, behavior:"instant" in window ? "instant" : "auto" });
+}
+function navToSub(sub){
+  Store.s.ui.subscreen = sub;
+  render();
+  window.scrollTo({ top:0 });
+}
+
+function navBar(){
+  const items = [["home","Home"],["routine","Routine"],["ai","AI"],["progress","Progress"],["more","More"]];
+  return `<nav class="nav" role="navigation" aria-label="Primary"><div class="nav-inner">
+    ${items.map(([id,label])=>`<button class="nav-btn ${CURRENT_SCREEN===id?"active":""}" data-tab="${id}"
+      aria-current="${CURRENT_SCREEN===id?"page":"false"}" aria-label="${label}">${icon(id,undefined,22)}<span>${label}</span></button>`).join("")}
+  </div></nav>`;
+}
+
+function render(){
+  const sub = Store.s.ui.subscreen;
+  let html;
+  if(sub){
+    html = ({ notes:ScreenNotes, focus:ScreenFocus, templates:ScreenTemplates, settings:ScreenSettings,
+              data:ScreenData, search:ScreenSearch }[sub] || ScreenMore)();
+    html = wrapSub(html);
+  } else {
+    html = (SCREENS[CURRENT_SCREEN]||ScreenHome)();
+  }
+  $("#app").innerHTML = html + navBar();
+  afterRender();
+}
+
+function wrapSub(inner){
+  return `<div class="screen" style="padding:0 16px 24px">
+    <header style="padding:14px 0;display:flex;align-items:center;gap:8px">
+      <button class="btn btn-icon btn-ghost" data-nav="more" aria-label="Back">${icon("back",undefined,20)}</button>
+      <h1 style="margin:0;font-size:19px;font-weight:700">${esc(subTitle())}</h1></header>
+    <div>${inner.replace(/<\/?div class="screen"[^>]*>/g,"")}</div></div>`;
+}
+function subTitle(){
+  const s = Store.s.ui.subscreen;
+  return ({ notes:"Notes", focus:"Focus Tools", templates:"Templates", settings:"Settings", data:"Import / Export", search:"Search" }[s]||"More");
+}
+
+/* ---------- Data screen ---------- */
+function ScreenData(){
+  return `<div>
+    <p class="muted" style="margin:0 0 16px;font-size:14px">Your data lives only on this device. Export a backup file regularly.</p>
+    <button class="btn btn-primary" data-act="export-json" style="width:100%;margin-bottom:10px">${icon("download",undefined,18)} Export backup (.json)</button>
+    <button class="btn btn-ghost" data-act="import-json" style="width:100%;margin-bottom:16px">${icon("upload",undefined,18)} Import backup</button>
+    <div class="card" style="padding:14px">
+      <div class="label">Current data</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+        <span class="muted">Routines</span><b>${Store.s.routines.length}</b>
+        <span class="muted">Days</span><b>${Store.s.days.length}</b>
+        <span class="muted">Tasks</span><b>${Store.s.tasks.length}</b>
+        <span class="muted">Notes</span><b>${Store.s.notes.length}</b>
+        <span class="muted">Sessions</span><b>${Store.s.sessions.length}</b>
+        <span class="muted">Templates</span><b>${Store.s.templates.length}</b>
+      </div>
+    </div>
+    <button class="btn btn-danger" data-act="clear-data" style="width:100%;margin-top:16px">Clear all data</button>
+  </div>`;
+}
+
+/* ---------- Search screen ---------- */
+function ScreenSearch(){
+  const q = Store.s.ui.searchQuery||"";
+  const results = searchAll(q);
+  return `<div>
+    <div style="position:relative;margin-bottom:14px">
+      <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-3)">${icon("search",undefined,16)}</span>
+      <input class="input" id="global-search" placeholder="Search tasks, days, notes" value="${esc(q)}" style="padding-left:38px">
+    </div>
+    ${q? (results.length? results.map(r=>`<button class="card" data-search-result='${esc(JSON.stringify(r))}' style="width:100%;text-align:left;padding:12px;margin-bottom:8px;display:block">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:2px">
+          <span class="tag ${r.type==="task"?"t-primary":"t-soft"}">${r.type==="task"?"Day "+r.dayNumber:"Note"}</span>
+          <span style="font-size:14px;font-weight:550">${esc(r.title)}</span></div>
+        ${r.subject?`<div class="muted2" style="font-size:12px">${esc(r.subject)}${r.date?" · "+esc(fmtDate(r.date)):""}</div>`:""}
+      </button>`).join("") : `<div class="empty"><h3>No results</h3><p>Nothing matched "${esc(q)}".</p></div>`)
+      : `<p class="muted2" style="text-align:center;padding:30px;font-size:13px">Type to search across your whole plan.</p>`}
+  </div>`;
+}
+</script>
+<script id="events" type="application/javascript">
+/* ============================ EVENT WIRING ============================ */
+function afterRender(){
+  wireNav(); wireDynamicInputs();
+}
+function wireNav(){
+  $$("[data-tab]").forEach(b=>b.onclick=()=>{ Store.s.ui.subscreen=null; navTo(b.dataset.tab); });
+  $$("[data-nav]").forEach(b=>b.onclick=()=>navToSub(b.dataset.nav));
+  $$("[data-close]").forEach(b=>b.onclick=()=>Layers.close());
+  wireActions($("#app"));
+}
+function wireActions(root){
+  if(!root) return;
+  root.querySelectorAll("[data-act]").forEach(el=>{ if(el.onclick) return; el.onclick = (ev)=>{ handleAction(el.dataset.act, el, ev); }; });
+  root.querySelectorAll("[data-toggle]").forEach(el=>{ el.onclick = async (e)=>{ e.stopPropagation(); await animateComplete(el.dataset.toggle); }; });
+  root.querySelectorAll("[data-menu]").forEach(el=>{ el.onclick = (e)=>{ e.stopPropagation(); openTaskMenu(el.dataset.menu); }; });
+  root.querySelectorAll("[data-toggle-day]").forEach(el=>{ el.onclick = (e)=>{ e.stopPropagation(); const card = el.closest(".day-card"); toggleDayCard(card); }; });
+  root.querySelectorAll("[data-goto-day]").forEach(el=>{ el.onclick = ()=>{ const d = Store.dayOfNumber(Store.primaryRoutine().id, parseInt(el.dataset.gotoDay,10)); if(d) focusDay(d); }; });
+  root.querySelectorAll("[data-add-to-day]").forEach(el=>{ el.onclick = (e)=>{ e.stopPropagation(); openTaskEditor(null, el.dataset.addToDay); }; });
+  root.querySelectorAll("[data-rview]").forEach(el=>{ el.onclick = ()=>{ Store.s.ui.routineView=el.dataset.rview; Store.s.ui.windowAnchor=null; Store.emit(); }; });
+  root.querySelectorAll("[data-window]").forEach(el=>{ el.onclick = ()=>{
+      const r = Store.primaryRoutine(); const days=Store.daysOf(r.id);
+      const cur = Store.s.ui.windowAnchor || clamp(daysBetween(r.startDate,todayISO())+1,1,r.duration);
+      Store.s.ui.windowAnchor = clamp(cur + (el.dataset.window==="down"? 32 : -32), 1, r.duration);
+      render(); setTimeout(()=>window.scrollTo({top:0}), 20);
+    }; });
+  root.querySelectorAll("[data-theme-set]").forEach(el=>{ el.onclick = async ()=>{ await Store.saveSettings({ theme:el.dataset.themeSet }); applyTheme(el.dataset.themeSet); render(); }; });
+  root.querySelectorAll("[data-undo-change]").forEach(el=>{ el.onclick = ()=>undoChange(el.dataset.undoChange); });
+  root.querySelectorAll("[data-open-note]").forEach(el=>{ el.onclick = ()=>{ Store.s.ui.editingNoteId=el.dataset.openNote; render(); }; });
+  root.querySelectorAll("[data-cmd]").forEach(el=>{ el.onmousedown = (e)=>{ e.preventDefault(); document.execCommand(el.dataset.cmd,false,el.dataset.val||null); $("#note-body")?.focus(); }; });
+  root.querySelectorAll("[data-use-template]").forEach(el=>{ el.onclick = ()=>useTemplate(el.dataset.useTemplate); });
+  root.querySelectorAll("[data-del-template]").forEach(el=>{ el.onclick = async ()=>{ await Cmd.deleteTemplate(el.dataset.delTemplate); toast("Template deleted"); }; });
+  root.querySelectorAll("[data-fmode]").forEach(el=>{ el.onclick = ()=>{ FocusTimer.mode=el.dataset.fmode; FocusTimer.elapsed=0; FocusTimer.running=false; render(); }; });
+  root.querySelectorAll("[data-fpreset]").forEach(el=>{ el.onclick = ()=>{ FocusTimer.target=parseInt(el.dataset.fpreset,10)*60; FocusTimer.elapsed=0; FocusTimer.running=false; render(); }; });
+  const ft = root.querySelector("[data-focus-toggle]"); if(ft) ft.onclick = toggleFocus;
+  const fr = root.querySelector("[data-focus-reset]"); if(fr) fr.onclick = resetFocus;
+  const sel = root.querySelector("#focus-task"); if(sel) sel.onchange = ()=>{ FocusTimer.taskId = sel.value||null; };
+  root.querySelectorAll("[data-ai-chip]").forEach(el=>{ el.onclick = ()=>pushAI(el.dataset.aiChip); });
+  root.querySelectorAll("[data-ai-apply]").forEach(el=>{ el.onclick = ()=>applyAIChange(); });
+  root.querySelectorAll("[data-ai-cancel]").forEach(el=>{ el.onclick = ()=>{ AIAgent.reject(); markPendingResolved(); toast("Changes cancelled"); }; });
+  const send = root.querySelector("[data-act='ai-send']"); if(send) send.onclick = submitAI;
+  root.querySelectorAll("[data-search-result]").forEach(el=>{ el.onclick = ()=>{ try{ const r=JSON.parse(el.dataset.searchResult); gotoSearchResult(r); }catch(e){} }; });
+  const tmpl = root.querySelector("[data-act='save-template']"); if(tmpl) tmpl.onclick = saveTemplateFlow;
+  wireDragDrop(root);
+}
+
+/* drag & drop tasks between (and within) days; always has a menu/sheet alternative */
+let _dragId = null;
+function wireDragDrop(root){
+  root.querySelectorAll(".task[draggable='true']").forEach(el=>{
+    el.ondragstart = (e)=>{ _dragId = el.dataset.task; el.classList.add("dragging");
+      try{ e.dataTransfer.setData("text/plain", _dragId); }catch(_){} e.dataTransfer.effectAllowed="move"; };
+    el.ondragend = ()=>{ el.classList.remove("dragging"); $$(".task.drop-target").forEach(x=>x.classList.remove("drop-target")); _dragId=null; };
+  });
+  root.querySelectorAll(".task").forEach(el=>{
+    el.ondragover = (e)=>{ if(!_dragId) return; if(el.dataset.task===_dragId) return; e.preventDefault(); el.classList.add("drop-target"); };
+    el.ondragleave = ()=> el.classList.remove("drop-target");
+    el.ondrop = async (e)=>{ e.preventDefault(); el.classList.remove("drop-target");
+      const id = _dragId || e.dataTransfer?.getData("text/plain"); if(!id) return;
+      const targetDayId = el.dataset.day;
+      if(targetDayId){ await Cmd.moveTask(id, targetDayId, {copy:false}); toast("Task moved"); }
+    };
+  });
+  // dropping onto a day card background moves to that day's end
+  root.querySelectorAll("[data-day-card]").forEach(card=>{
+    card.ondragover = (e)=>{ if(_dragId) e.preventDefault(); };
+    card.ondrop = async (e)=>{ if(e.target.closest(".task")) return; e.preventDefault();
+      const id=_dragId; if(!id) return; await Cmd.moveTask(id, card.dataset.dayCard, {copy:false}); toast("Task moved"); };
+  });
+}
+
+/* debounced input listeners (bound once per render via direct listeners) */
+function wireDynamicInputs(){
+  const q = $("#q"); if(q) q.oninput = debounce(()=>{ Store.s.ui.searchQuery=q.value; Store.emit(); },300);
+  const rs = $("#routine-search"); if(rs) rs.oninput = debounce(()=>{ Store.s.ui.searchQuery=rs.value; render(); },300);
+  const ns = $("#notes-search"); if(ns) ns.oninput = debounce(()=>{ Store.s.ui.notesQuery=ns.value; render(); },250);
+  const gs = $("#global-search"); if(gs) gs.oninput = debounce(()=>{ Store.s.ui.searchQuery=gs.value; render(); },250);
+  const nt = $("#note-title"); if(nt) nt.oninput = debounce(()=>saveNote(),400);
+  const nb = $("#note-body"); if(nb) nb.oninput = debounce(()=>saveNote(),500);
+  const sp = $("#set-primary"); if(sp) sp.onchange = async ()=>{ await Cmd.setPrimary(sp.value); toast("Primary routine updated"); };
+  const sk = $("#set-key"); if(sk) sk.onchange = async ()=>{ await Store.saveSettings({ ai:{ ...Store.s.settings.ai, apiKey:sk.value.trim() } }); toast("API key saved"); };
+  const sm = $("#set-model"); if(sm) sm.onchange = async ()=>{
+    const custom = $("#set-model-custom");
+    if(sm.value==="__custom"){ custom.style.display="block"; custom.focus(); return; }
+    custom.style.display="none";
+    await Store.saveSettings({ ai:{ ...Store.s.settings.ai, model:sm.value } }); toast("Model saved");
+  };
+  const smc = $("#set-model-custom"); if(smc) smc.onchange = async ()=>{ const v=smc.value.trim(); if(v){ await Store.saveSettings({ ai:{ ...Store.s.settings.ai, model:v } }); toast("Model saved"); } };
+  const spr = $("#set-provider"); if(spr) spr.onchange = async ()=>{
+    const pid = spr.value; const p = AIProviders[pid]||AIProviders.groq;
+    await Store.saveSettings({ ai:{ ...Store.s.settings.ai, provider:pid, model:p.defaultModel } });
+    toast(p.name+" selected · now add its API key"); render();
+  };
+  const stest = $("#set-test"); if(stest) stest.onclick = async ()=>{
+    const el = $("#set-ai-status"); const key = ($("#set-key")?.value||"").trim();
+    const model = $("#set-model")?.value==="__custom" ? ($("#set-model-custom")?.value||"").trim() : $("#set-model")?.value;
+    await Store.saveSettings({ ai:{ ...Store.s.settings.ai, apiKey:key, model } });
+    el.style.display="block"; el.style.background="var(--warn-soft)"; el.style.color="var(--warn)"; el.textContent="Testing…";
+    const res = await AIService.testKey(key, model);
+    el.style.background = res.ok?"var(--success-soft)":"var(--danger-soft)";
+    el.style.color = res.ok?"var(--success)":"var(--danger)";
+    el.textContent = res.ok ? "Working — the key is valid." : res.message;
+  };
+  const ti = $("#ai-input"); if(ti){ ti.oninput = ()=>{ ti.style.height="auto"; ti.style.height=Math.min(ti.scrollHeight,120)+"px"; };
+    ti.onkeydown = (e)=>{ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); submitAI(); } }; }
+}
+
+/* ---------- actions ---------- */
+async function handleAction(act, el, ev){
+  switch(act){
+    case "new-routine": return openRoutineCreator("manual");
+    case "bulk-routine": return openRoutineCreator("bulk");
+    case "ai-routine": return openRoutineCreator("ai");
+    case "add-task": return openTaskEditor(null, currentFocusDayId());
+    case "view-day": { const d = todayDay(); if(d){ Store.s.ui.subscreen=null; Store.s.ui.routineView="today"; navTo("routine"); Store.s.ui.focusDayId=d.id; } return; }
+    case "start-focus": Store.s.ui.subscreen="focus"; render(); return;
+    case "ask-ai": return navTo("ai");
+    case "continue-session": return resumeSession(el.dataset.session);
+    case "routine-menu": return openRoutineMenu();
+    case "goto-day": return openGoToDay();
+    case "goto-date": return openGoToDate();
+    case "jump-today": { const d = todayDay(); if(d) focusDay(d); return; }
+    case "new-note": { Store.s.ui.subscreen="notes"; Store.s.ui.editingNoteId="new"; render(); return; }
+    case "close-note": { saveNote(); Store.s.ui.editingNoteId=null; render(); return; }
+    case "delete-note": { const id=el.dataset.id; if(id==="new"){ Store.s.ui.editingNoteId=null; render(); return; }
+      return confirmDialog({ title:"Delete note?", message:"This cannot be undone.", confirmText:"Delete", danger:true,
+        onConfirm: async ()=>{ await Cmd.deleteNote(id); Store.s.ui.editingNoteId=null; render(); toast("Note deleted"); } }); }
+    case "ai-config": return openAIConfig();
+    case "export-json": return exportJSON();
+    case "import-json": return importJSON();
+    case "clear-data": return confirmDialog({ title:"Clear all data?", message:"Every routine, task, note and session will be permanently deleted from this device. Export a backup first if you need it.", confirmText:"Delete everything", danger:true,
+      onConfirm: async ()=>{ await Cmd.clearAll(); toast("All data cleared"); navTo("home"); } });
+  }
+}
+
+/* ---------- day & task helpers ---------- */
+function currentFocusDayId(){
+  const r = Store.primaryRoutine(); if(!r) return null;
+  const d = Store.s.ui.focusDayId ? Store.day(Store.s.ui.focusDayId) : null;
+  if(d && d.routineId===r.id) return d.id;
+  return (todayDay()||{}).id || (Store.daysOf(r.id)[0]||{}).id;
+}
+function todayDay(){
+  const r = Store.primaryRoutine(); if(!r) return null;
+  const idx = clamp(daysBetween(r.startDate,todayISO())+1,1,r.duration);
+  return Store.dayOfNumber(r.id,idx) || Store.daysOf(r.id)[0] || null;
+}
+function focusDay(day){
+  Store.s.ui.focusDayId = day.id;
+  Store.s.ui.windowAnchor = day.dayNumber;
+  if(CURRENT_SCREEN==="routine"){ render(); }
+  setTimeout(()=>{ const el=document.getElementById("day-"+day.id); if(el){ el.scrollIntoView({behavior:"smooth",block:"start"}); closeDayCardIfOpen(el,false); } }, 60);
+}
+function toggleDayCard(card){
+  if(!card) return;
+  const btn = card.querySelector("[data-toggle-day]");
+  const open = btn.getAttribute("aria-expanded")==="true";
+  const dayId = btn.dataset.toggleDay;
+  const day = Store.day(dayId); if(!day) return;
+  if(open){ card.querySelector(".day-body")?.remove(); btn.setAttribute("aria-expanded","false"); btn.innerHTML=icon("chevronR",undefined,18); }
+  else {
+    const body = document.createElement("div"); body.className="day-body";
+    body.innerHTML = dayTasksBodyHtml(dayId,{draggable:true}) + `<button class="btn btn-ghost btn-sm" data-add-to-day="${dayId}" style="margin-top:10px">${icon("plus",undefined,15)} Add task</button>`;
+    card.appendChild(body);
+    btn.setAttribute("aria-expanded","true"); btn.innerHTML=icon("chevron",undefined,18);
+    wireActions(card);
+  }
+}
+function closeDayCardIfOpen(card,close){ const b=card.querySelector("[data-toggle-day]"); if(close && b && b.getAttribute("aria-expanded")==="true") toggleDayCard(card); }
+
+async function animateComplete(taskId){
+  const row = document.querySelector('[data-task="'+taskId+'"]');
+  if(row) row.classList.add("completing");
+  await Cmd.setTaskComplete(taskId, true);
+  setTimeout(()=>{ const again=document.querySelector('[data-task="'+taskId+'"]'); if(again) again.classList.add("done"); }, 10);
+}
+
+/* ---------- task action sheet ---------- */
+function openTaskMenu(taskId){
+  const t = Store.s.tasks.find(x=>x.id===taskId); if(!t) return;
+  const layer = sheet("Task", `
+    <p style="margin:0 0 14px;font-size:15px;font-weight:600">${esc(t.title)}</p>
+    <div style="display:flex;flex-direction:column">
+      <button class="menu-item" data-m="toggle">${icon("check",undefined,18)} ${t.completed?"Mark incomplete":"Mark complete"}</button>
+      <button class="menu-item" data-m="edit">${icon("edit",undefined,18)} Edit</button>
+      <button class="menu-item" data-m="move">${icon("move",undefined,18)} Move to day…</button>
+      <button class="menu-item" data-m="copy">${icon("copy",undefined,18)} Copy to day…</button>
+      <button class="menu-item" data-m="dup">${icon("copy",undefined,18)} Duplicate here</button>
+      <button class="menu-item" data-m="focus">${icon("timer",undefined,18)} Start focus</button>
+      <button class="menu-item danger" data-m="del">${icon("trash",undefined,18)} Delete</button>
+    </div>`);
+  layer.querySelectorAll("[data-m]").forEach(b=>b.onclick=async ()=>{
+    const m=b.dataset.m; Layers.close();
+    if(m==="toggle") await Cmd.setTaskComplete(taskId, !t.completed);
+    if(m==="edit") openTaskEditor(taskId, t.dayId);
+    if(m==="move") openDayPicker("Move to day", async (day)=>{ await Cmd.moveTask(taskId, day.id,{copy:false}); toast("Moved to Day "+day.dayNumber); });
+    if(m==="copy") openDayPicker("Copy to day", async (day)=>{ await Cmd.moveTask(taskId, day.id,{copy:true}); toast("Copied to Day "+day.dayNumber); });
+    if(m==="dup"){ await Cmd.duplicateTask(taskId); toast("Duplicated"); }
+    if(m==="del") confirmDialog({ title:"Delete task?", message:'"'+t.title+'" will be removed.', confirmText:"Delete", danger:true, onConfirm: async()=>{ await Cmd.deleteTask(taskId); toast("Task deleted"); } });
+    if(m==="focus"){ Store.s.ui.subscreen="focus"; FocusTimer.taskId=taskId; render(); }
+  });
+}
+
+/* ---------- task editor ---------- */
+function openTaskEditor(taskId, dayId){
+  const editing = taskId ? Store.s.tasks.find(t=>t.id===taskId) : null;
+  const day = Store.day(dayId) || (editing? Store.day(editing.dayId):null);
+  const subjects = Array.from(new Set(Store.s.subjects.map(s=>s.name)));
+  const layer = sheet(editing?"Edit task":"Add task", `
+    <label class="label" for="te-subject">Subject</label>
+    <input class="input" id="te-subject" list="subj-list" placeholder="e.g. বাংলা" value="${esc(editing?Store.subjectName(editing.subjectId):"")}" style="margin-bottom:12px">
+    <datalist id="subj-list">${subjects.map(s=>`<option value="${esc(s)}"></option>`).join("")}</datalist>
+    <label class="label" for="te-title">Task / topic</label>
+    <input class="input" id="te-title" placeholder="e.g. সন্ধি" value="${esc(editing?editing.title:"")}" style="margin-bottom:12px">
+    <label class="label" for="te-min">Estimated minutes (optional)</label>
+    <input class="input" id="te-min" type="number" min="0" step="5" value="${editing?(editing.estimatedMinutes||""):""}" style="margin-bottom:12px">
+    <label class="label" for="te-note">Note (optional)</label>
+    <textarea class="input" id="te-note" placeholder="Reference, page number…" style="margin-bottom:16px">${esc(editing?editing.note:"")}</textarea>
+    ${day?`<p class="muted2" style="font-size:12px;margin:0 0 12px">Adding to Day ${day.dayNumber} · ${esc(fmtDate(day.date))}</p>`:""}
+    <button class="btn btn-primary" id="te-save" style="width:100%">${editing?"Save changes":"Add task"}</button>`,
+    { initialFocus:"#te-title" });
+  layer.querySelector("#te-save").onclick = async ()=>{
+    const subject = layer.querySelector("#te-subject").value.trim();
+    const title = layer.querySelector("#te-title").value.trim();
+    if(!title){ toast("Please enter a task name"); return; }
+    const min = parseInt(layer.querySelector("#te-min").value,10)||0;
+    const note = layer.querySelector("#te-note").value.trim();
+    try{
+      if(editing) await Cmd.updateTask(editing.id, { title, subjectName:subject||"General", estimatedMinutes:min, note });
+      else await Cmd.createTask({ dayId:day.id, subjectName:subject||"General", title, estimatedMinutes:min, note });
+      Layers.close(); toast(editing?"Task updated":"Task added");
+    }catch(e){ toast(e.message||"Could not save task"); }
+  };
+}
+
+/* ---------- day picker ---------- */
+function openDayPicker(title, onPick){
+  const r = Store.primaryRoutine();
+  if(!r) return toast("Create a routine first");
+  const curIdx = clamp(daysBetween(r.startDate,todayISO())+1,1,r.duration);
+  const layer = sheet(title, `
+    <label class="label" for="dp-day">Day number (1–${r.duration})</label>
+    <input class="input" id="dp-day" type="number" min="1" max="${r.duration}" value="${curIdx}" style="margin-bottom:12px">
+    <label class="label" for="dp-date">or pick a date</label>
+    <input class="input" id="dp-date" type="date" style="margin-bottom:16px">
+    <button class="btn btn-primary" id="dp-ok" style="width:100%">Continue</button>`);
+  layer.querySelector("#dp-date").onchange = (e)=>{ const n = daysBetween(r.startDate, e.target.value)+1; if(n>=1 && n<=r.duration) layer.querySelector("#dp-day").value=n; };
+  layer.querySelector("#dp-ok").onclick = ()=>{
+    const n = clamp(parseInt(layer.querySelector("#dp-day").value,10)||1,1,r.duration);
+    const day = Store.dayOfNumber(r.id,n); Layers.close();
+    if(day) onPick(day); else toast("Day not found");
+  };
+}
+
+/* ---------- go to day/date (routine nav) ---------- */
+function openGoToDay(){
+  openDayPicker("Go to day", day=>{ focusDay(day); toast("Jumped to Day "+day.dayNumber); });
+}
+function openGoToDate(){
+  const r = Store.primaryRoutine();
+  const layer = sheet("Go to date", `
+    <label class="label" for="gd-date">Select a date</label>
+    <input class="input" id="gd-date" type="date" value="${todayISO()}" style="margin-bottom:16px">
+    <button class="btn btn-primary" id="gd-ok" style="width:100%">Jump</button>`);
+  layer.querySelector("#gd-ok").onclick = ()=>{
+    const date = layer.querySelector("#gd-date").value;
+    const n = daysBetween(r.startDate,date)+1;
+    Layers.close();
+    if(n<1) return toast("That date is before the routine starts");
+    if(n>r.duration) return toast("That date is after the routine ends");
+    const day = Store.dayOfNumber(r.id,n); if(day) focusDay(day);
+  };
+}
+</script>
+
+<script id="flows" type="application/javascript">
+/* ============================ ROUTINE CREATION FLOWS ============================ */
+function openRoutineCreator(mode="manual"){
+  if(mode==="bulk") return openBulkCreator();
+  if(mode==="ai"){ navTo("ai"); return pushAI("I want to create a new study routine. Ask me the questions you need first."); }
+  const layer = sheet("New routine", `
+    <label class="label" for="nr-name">Routine name</label>
+    <input class="input" id="nr-name" placeholder="e.g. 90-Day Admission" style="margin-bottom:12px">
+    <label class="label" for="nr-start">Start date</label>
+    <input class="input" id="nr-start" type="date" value="${todayISO()}" style="margin-bottom:12px">
+    <label class="label" for="nr-dur">Duration (days)</label>
+    <input class="input" id="nr-dur" type="number" min="1" max="1000" value="90" style="margin-bottom:12px">
+    <div class="scroll-x" style="margin-bottom:16px">
+      ${[7,30,90,180,365].map(d=>`<button class="chip" data-preset="${d}">${d} days</button>`).join("")}
+    </div>
+    <button class="btn btn-primary" id="nr-create" style="width:100%">Create empty routine</button>
+    <button class="btn btn-ghost" id="nr-bulk" style="width:100%;margin-top:8px">${icon("upload",undefined,16)} Paste a plan instead</button>`,
+    { initialFocus:"#nr-name" });
+  layer.querySelectorAll("[data-preset]").forEach(b=>b.onclick=()=>{ layer.querySelector("#nr-dur").value=b.dataset.preset; });
+  layer.querySelector("#nr-bulk").onclick = ()=>{ Layers.close(); openBulkCreator(); };
+  layer.querySelector("#nr-create").onclick = async ()=>{
+    const name = layer.querySelector("#nr-name").value.trim() || "My Routine";
+    const start = layer.querySelector("#nr-start").value || todayISO();
+    const dur = clamp(parseInt(layer.querySelector("#nr-dur").value,10)||30,1,1000);
+    const r = await Cmd.createRoutine({ name, startDate:start, duration:dur, days:[] });
+    Layers.close(); toast("Routine created"); Store.s.ui.focusDayId=null; navTo("routine");
+  };
+}
+
+function openBulkCreator(){
+  const layer = sheet("Paste a plan", `
+    <p class="muted" style="margin:0 0 10px;font-size:13px">One day per block. Format: <code>Day 1</code> then <code>Subject: topic, topic</code>.</p>
+    <textarea class="input" id="bk-text" rows="9" placeholder="Day 1
+বাংলা: সন্ধি, সমাস
+English: Tense, Voice
+GK: মুক্তিযুদ্ধ
+
+Day 2
+বাংলা: কারক
+English: Narration" style="font-family:ui-monospace,monospace;font-size:13px;margin-bottom:10px"></textarea>
+    <p class="muted2" id="bk-info" style="font-size:12px;margin:0 0 14px">Nothing parsed yet.</p>
+    <label class="label" for="bk-name">Routine name</label>
+    <input class="input" id="bk-name" placeholder="Pasted plan" style="margin-bottom:12px">
+    <label class="label" for="bk-start">Start date</label>
+    <input class="input" id="bk-start" type="date" value="${todayISO()}" style="margin-bottom:16px">
+    <button class="btn btn-primary" id="bk-create" style="width:100%">Create routine</button>`);
+  const ta = layer.querySelector("#bk-text");
+  const update = ()=>{ const days = parseBulkPlan(ta.value); const tasks = days.reduce((a,d)=>a+d.subjects.reduce((b,s)=>b+s.topics.length,0),0);
+    layer.querySelector("#bk-info").textContent = days.length? `${days.length} day(s) · ${tasks} task(s) detected` : "Nothing parsed yet."; };
+  ta.oninput = debounce(update,250);
+  layer.querySelector("#bk-create").onclick = async ()=>{
+    const days = parseBulkPlan(ta.value);
+    if(!days.length) return toast("Could not detect any days");
+    const name = layer.querySelector("#bk-name").value.trim() || "Pasted plan";
+    const start = layer.querySelector("#bk-start").value || todayISO();
+    await Cmd.createRoutine({ name, startDate:start, duration:days.length, days });
+    Layers.close(); toast("Routine created"); navTo("routine");
+  };
+}
+
+/* ---------- routine menu ---------- */
+function openRoutineMenu(){
+  const r = Store.primaryRoutine(); if(!r) return;
+  const layer = sheet("Routine", `
+    <p style="margin:0 0 12px;font-size:14px;font-weight:600">${esc(r.name)}</p>
+    <button class="menu-item" data-m="rename">${icon("edit",undefined,18)} Rename</button>
+    <button class="menu-item" data-m="start">${icon("calendar",undefined,18)} Change start date</button>
+    <button class="menu-item" data-m="duration">${icon("refresh",undefined,18)} Change duration</button>
+    <button class="menu-item" data-m="template">${icon("template",undefined,18)} Save as template</button>
+    <button class="menu-item" data-m="switch">${icon("copy",undefined,18)} Switch routine</button>
+    <button class="menu-item" data-m="new">${icon("plus",undefined,18)} New routine</button>
+    <button class="menu-item danger" data-m="delete">${icon("trash",undefined,18)} Delete routine</button>`);
+  layer.querySelectorAll("[data-m]").forEach(b=>b.onclick=async ()=>{
+    const m=b.dataset.m; Layers.close();
+    if(m==="rename") promptText("Rename routine", r.name, async v=>{ await Cmd.updateRoutine(r.id,{ name:v }); toast("Renamed"); });
+    if(m==="start") promptDate("Start date", r.startDate, async v=>{ await Cmd.updateRoutine(r.id,{ startDate:v }); toast("Start date updated"); });
+    if(m==="duration") promptNumber("Duration (days)", r.duration, 1, 1000, async v=>{ await Cmd.updateRoutine(r.id,{ duration:v }); toast("Duration updated"); });
+    if(m==="template"){ await Cmd.saveAsTemplate(r.id, r.name); toast("Saved as template"); }
+    if(m==="switch") openRoutineSwitcher();
+    if(m==="new") openRoutineCreator("manual");
+    if(m==="delete") confirmDialog({ title:"Delete routine?", message:'"'+r.name+'" and all its tasks will be permanently deleted.', confirmText:"Delete", danger:true,
+      onConfirm: async ()=>{ await Cmd.deleteRoutine(r.id); toast("Routine deleted"); navTo("home"); } });
+  });
+}
+function promptText(title, value, cb){
+  const layer = sheet(title, `<input class="input" id="px" value="${esc(value)}" style="margin-bottom:16px">
+    <button class="btn btn-primary" id="p-ok" style="width:100%">Save</button>`, { initialFocus:"#px" });
+  layer.querySelector("#p-ok").onclick = async ()=>{ const v=layer.querySelector("#px").value.trim(); if(v){ await cb(v); Layers.close(); } };
+}
+function promptDate(title, value, cb){
+  const layer = sheet(title, `<input class="input" type="date" id="px" value="${esc(value)}" style="margin-bottom:16px">
+    <button class="btn btn-primary" id="p-ok" style="width:100%">Save</button>`);
+  layer.querySelector("#p-ok").onclick = async ()=>{ const v=layer.querySelector("#px").value; if(v){ await cb(v); Layers.close(); } };
+}
+function promptNumber(title, value, min, max, cb){
+  const layer = sheet(title, `<input class="input" type="number" id="px" min="${min}" max="${max}" value="${value}" style="margin-bottom:16px">
+    <button class="btn btn-primary" id="p-ok" style="width:100%">Save</button>`);
+  layer.querySelector("#p-ok").onclick = async ()=>{ const v=clamp(parseInt(layer.querySelector("#px").value,10)||value,min,max); await cb(v); Layers.close(); };
+}
+function openRoutineSwitcher(){
+  const routines = Store.s.routines;
+  const layer = sheet("Routines", routines.map(r=>`
+    <button class="menu-item" data-rid="${r.id}">
+      <span style="color:${r.isPrimary?"var(--primary)":"var(--text-3)"}">${icon(r.isPrimary?"check":"routine",undefined,18)}</span>
+      <span style="flex:1"><span style="font-size:15px;font-weight:550">${esc(r.name)}</span>
+      <span class="muted2" style="display:block;font-size:12px">${r.duration} days · ${Store.statsFor(r.id).pct}%</span></span>
+      ${r.isPrimary?'<span class="tag t-primary">Primary</span>':''}
+    </button>`).join("") + `<button class="menu-item" data-new style="color:var(--primary)">${icon("plus",undefined,18)} New routine</button>`);
+  layer.querySelectorAll("[data-rid]").forEach(b=>b.onclick=async ()=>{ await Cmd.setPrimary(b.dataset.rid); Layers.close(); toast("Primary routine changed"); });
+  layer.querySelector("[data-new]").onclick = ()=>{ Layers.close(); openRoutineCreator("manual"); };
+}
+
+/* ---------- import / export ---------- */
+async function exportJSON(){
+  const payload = Cmd.exportPayload();
+  const text = JSON.stringify(payload,null,2);
+  const blob = new Blob([text],{ type:"application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "inflowmap-backup-"+todayISO()+".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  toast("Backup exported");
+}
+function importJSON(){
+  const input = document.createElement("input"); input.type="file"; input.accept=".json,application/json";
+  input.onchange = async ()=>{
+    const file = input.files[0]; if(!file) return;
+    let payload;
+    try{ payload = JSON.parse(await file.text()); }
+    catch(e){ return setTimeout(()=>toast("This backup file could not be read."),100); }
+    const valid = Cmd.validatePayload(payload);
+    if(!valid.ok){ Layers.close(); return showImportError(valid.problems); }
+    const s = Cmd.summarize(payload);
+    const layer = sheet("Import backup", `
+      <div class="card" style="padding:14px;margin-bottom:14px">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:6px;font-size:14px">
+          <span class="muted">Routines</span><b>${s.routines}</b>
+          <span class="muted">Days</span><b>${s.days}</b>
+          <span class="muted">Tasks</span><b>${s.tasks}</b>
+          <span class="muted">Notes</span><b>${s.notes}</b>
+          <span class="muted">Sessions</span><b>${s.sessions}</b>
+        </div>
+      </div>
+      <div class="label">How should it be applied?</div>
+      <div class="scroll-x" style="margin-bottom:16px">
+        <button class="chip active" data-mode="merge">Merge with existing</button>
+        <button class="chip" data-mode="replace">Replace everything</button>
+      </div>
+      <p class="muted2" id="imp-note" style="font-size:12px;margin:0 0 16px">Merge keeps your current data and adds the backup alongside it. Duplicate items get new ids.</p>
+      <button class="btn btn-primary" id="imp-ok" style="width:100%">Import</button>`);
+    let mode = "merge";
+    layer.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{ mode=b.dataset.mode;
+      layer.querySelectorAll("[data-mode]").forEach(x=>x.classList.toggle("active",x===b));
+      layer.querySelector("#imp-note").textContent = mode==="merge"
+        ? "Merge keeps your current data and adds the backup alongside it. Duplicate items get new ids."
+        : "Replace deletes everything currently stored and restores only this backup."; });
+    layer.querySelector("#imp-ok").onclick = async ()=>{
+      try{ const added = await Cmd.importPayload(payload, mode); Layers.close();
+        toast(`Imported ${added.routines} routine(s), ${added.tasks} task(s)`); render(); }
+      catch(e){ Layers.close(); showImportError([e.message]); }
+    };
+  };
+  input.click();
+}
+function showImportError(problems){
+  confirmDialog({ title:"Import failed", message: problems.join(" "), confirmText:"OK",
+    onConfirm: async ()=>{} });
+}
+
+/* ---------- notes ---------- */
+let _noteDirty = false;
+async function saveNote(){
+  const id = Store.s.ui.editingNoteId; if(!id) return;
+  const title = ($("#note-title")?.value||"").trim();
+  const content = $("#note-body")?.innerHTML || "";
+  if(id==="new"){
+    const n = await Cmd.createNote({ title: title||"Untitled", content });
+    Store.s.ui.editingNoteId = n.id;
+    return;
+  }
+  await Cmd.updateNote(id, { title: title||"Untitled", content });
+}
+
+/* ---------- templates ---------- */
+async function saveTemplateFlow(){
+  const r = Store.primaryRoutine(); if(!r) return toast("No routine to save");
+  await Cmd.saveAsTemplate(r.id, r.name);
+  toast("Template saved");
+}
+function useTemplate(templateId){
+  const tpl = Store.s.templates.find(t=>t.id===templateId); if(!tpl) return;
+  const layer = sheet("Use template", `
+    <p class="muted" style="margin:0 0 14px;font-size:13px">Creates a new independent routine. The template stays unchanged.</p>
+    <label class="label" for="ut-name">Routine name</label>
+    <input class="input" id="ut-name" value="${esc(tpl.name)}" style="margin-bottom:12px">
+    <label class="label" for="ut-start">Start date</label>
+    <input class="input" id="ut-start" type="date" value="${todayISO()}" style="margin-bottom:16px">
+    <button class="btn btn-primary" id="ut-ok" style="width:100%">Create routine</button>`);
+  layer.querySelector("#ut-ok").onclick = async ()=>{
+    await Cmd.createFromTemplate(templateId, { name: layer.querySelector("#ut-name").value.trim()||tpl.name, startDate: layer.querySelector("#ut-start").value });
+    Layers.close(); toast("Routine created"); navTo("routine");
+  };
+}
+
+/* ---------- focus timer ---------- */
+function toggleFocus(){
+  const f = FocusTimer;
+  if(f.running){
+    f.running=false; cancelAnimationFrame(f.raf);
+    endFocusSession(false);
+    render();
+  } else {
+    f.running=true; f.startedAt = f.startedAt || Date.now();
+    if(!f.sessionId){
+      f.sessionId = uid("ses");
+      Cmd.saveSession({ id:f.sessionId, taskId:f.taskId||null, startedAt:Date.now(), endedAt:null, duration:f.elapsed? Math.round(f.elapsed/60):0 });
+    }
+    const tick = ()=>{
+      if(!f.running) return;
+      const now = Date.now();
+      const delta = Math.floor((now - (f._last||now))/1000); f._last = now;
+      f.elapsed += delta;
+      if(f.mode==="pomodoro" && f.elapsed>=f.target){ f.elapsed=f.target; f.running=false; endFocusSession(true); render(); toast("Focus session complete"); return; }
+      const shown = f.mode==="stopwatch"? f.elapsed : Math.max(0,f.target-f.elapsed);
+      const mm=String(Math.floor(shown/60)).padStart(2,"0"), ss=String(shown%60).padStart(2,"0");
+      const display = document.querySelector("[data-focus-toggle]")?.closest(".card")?.querySelector("div");
+      if(display) display.textContent = mm+":"+ss;
+      if(f.mode==="pomodoro"){ const b=document.querySelector(".bar > i"); if(b) b.style.width=clamp(f.elapsed/f.target*100,0,100)+"%"; }
+      f.raf = requestAnimationFrame(tick);
+    };
+    f._last = Date.now();
+    f.raf = requestAnimationFrame(tick);
+    render();
+  }
+}
+function resetFocus(){ cancelAnimationFrame(FocusTimer.raf); Object.assign(FocusTimer,{ running:false, elapsed:0, startedAt:null, sessionId:null, _last:null }); render(); }
+async function endFocusSession(complete){
+  const f = FocusTimer;
+  const mins = Math.round(f.elapsed/60);
+  if(f.sessionId){
+    const sess = Store.s.sessions.find(s=>s.id===f.sessionId);
+    if(sess){ sess.endedAt = Date.now(); sess.duration = mins; await DB.put("sessions",sess); Store.emit(); }
+  }
+  f.sessionId = null; f.startedAt = null;
+}
+async function resumeSession(sessionId){
+  const sess = Store.s.sessions.find(s=>s.id===sessionId); if(!sess) return;
+  Store.s.ui.subscreen="focus"; FocusTimer.taskId = sess.taskId||null; FocusTimer.elapsed = (sess.duration||0)*60;
+  FocusTimer.sessionId = sess.id; FocusTimer.startedAt = null; FocusTimer.running = false;
+  render();
+}
+
+/* ---------- AI actions ---------- */
+function submitAI(){
+  const ti = $("#ai-input"); if(!ti) return;
+  const text = ti.value.trim(); if(!text || AIAgent.busy) return;
+  ti.value=""; ti.style.height="44px";
+  pushAI(text);
+  setTimeout(renderAIScreenScroll, 60);
+}
+async function applyAIChange(){
+  try{
+    const n = await AIAgent.apply();
+    markPendingResolved();
+    toast(n+" change(s) applied");
+  }catch(e){
+    toast(e.message||"Could not apply changes");
+  }
+}
+function markPendingResolved(){
+  const msgs = Store.s.ui.aiMessages||[];
+  for(const m of msgs) if(m.pending) m.pending.resolved = true;
+  render();
+}
+async function undoChange(changeId){
+  const c = Store.s.aichanges.find(x=>x.id===changeId); if(!c) return;
+  const undo = UndoRegistry.get(changeId);
+  if(!undo) return toast("This change can no longer be undone automatically.");
+  await undo();
+  c.revertedAt = Date.now(); await DB.put("aichanges",c);
+  toast("Change undone"); render();
+}
+
+/* ---------- search result navigation ---------- */
+function gotoSearchResult(r){
+  Store.s.ui.subscreen=null;
+  if(r.type==="task"){ const d = Store.day(Store.s.tasks.find(t=>t.id===r.taskId)?.dayId); CURRENT_SCREEN="routine"; Store.s.ui.routineView="all";
+    render(); if(d) setTimeout(()=>focusDay(d),80); }
+  else if(r.type==="note"){ Store.s.ui.editingNoteId=r.noteId; Store.s.ui.subscreen="notes"; render(); }
+}
+
+/* ============================ BOOT ============================ */
+(async function boot(){
+  try{
+    await DB.open();
+    await Store.load();
+  }catch(e){
+    console.error(e);
+    $("#app").innerHTML = `<div class="empty"><h3>Storage unavailable</h3><p>InflowMap needs a browser that allows local storage (IndexedDB).</p></div>`;
+    return;
+  }
+  applyTheme(Store.s.settings.theme||"system");
+  const params = new URLSearchParams(location.search);
+  const start = params.get("screen"); if(start && SCREENS[start]) CURRENT_SCREEN=start;
+  Store.subscribe(()=>{ /* re-render on state change, preserving scroll on routine edits */
+    const y = window.scrollY; render(); if(CURRENT_SCREEN==="routine") window.scrollTo({top:y});
+  });
+  render();
+  /* network state: only surface when an AI action needs it */
+  addEventListener("online", ()=>toast("Back online"));
+  addEventListener("offline", ()=>{ /* silent; AI explains when used */ });
+})();
+</script>
+</body>
+</html>
